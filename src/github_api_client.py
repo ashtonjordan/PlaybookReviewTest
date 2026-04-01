@@ -119,12 +119,17 @@ class GitHubAPIClient:
     def findings_to_comments(report: ReviewReport) -> list[ReviewComment]:
         """Convert ReviewReport findings into rich ReviewComment objects.
 
-        Each comment includes severity badge, rule ID, description, and remediation.
+        Only posts inline comments for error and warning severity.
+        Info findings are included in the summary only to reduce noise.
         """
         severity_icons = {"error": "🔴", "warning": "🟡", "info": "🔵"}
 
         comments = []
         for f in report.findings:
+            # Skip info-level findings from inline comments — summary only
+            if f.severity.value == "info":
+                continue
+
             icon = severity_icons.get(f.severity.value, "⚪")
             lines = [
                 f"{icon} **{f.severity.value.upper()}** | Rule: `{f.rule_id}`",

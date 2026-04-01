@@ -341,14 +341,14 @@ class ReviewAgent:
         verdict_icon = "✅" if report.verdict == "pass" else "❌"
         lines = [f"## {verdict_icon} PR Review — {report.verdict.upper()}\n"]
 
-        # Severity breakdown
+        # Only count actionable findings (error + warning)
+        actionable = [f for f in report.findings if f.severity.value != "info"]
         error_count = report.summary.get("error", 0)
         warning_count = report.summary.get("warning", 0)
-        info_count = report.summary.get("info", 0)
 
         lines.append(
-            f"**{len(report.findings)} finding(s)** | "
-            f"🔴 {error_count} error(s) | 🟡 {warning_count} warning(s) | 🔵 {info_count} info\n"
+            f"**{len(actionable)} actionable finding(s)** | "
+            f"🔴 {error_count} error(s) | 🟡 {warning_count} warning(s)\n"
         )
 
         if error_count > 0:
@@ -356,14 +356,13 @@ class ReviewAgent:
                 "⚠️ **This PR has errors that must be resolved before merging.**\n"
             )
 
-        # Per-finding details
-        if report.findings:
+        if actionable:
             lines.append("### Findings\n")
             lines.append("| # | Severity | Rule | File | Line | Description |")
             lines.append("|---|----------|------|------|------|-------------|")
 
-            severity_icons = {"error": "🔴", "warning": "🟡", "info": "🔵"}
-            for i, f in enumerate(report.findings, 1):
+            severity_icons = {"error": "🔴", "warning": "🟡"}
+            for i, f in enumerate(actionable, 1):
                 icon = severity_icons.get(f.severity.value, "⚪")
                 desc_short = f.description[:100]
                 if len(f.description) > 100:
@@ -373,11 +372,10 @@ class ReviewAgent:
                     f"`{f.file_path}` | {f.line_start} | {desc_short} |"
                 )
 
-            # Remediation details
-            has_remediation = any(f.remediation for f in report.findings)
+            has_remediation = any(f.remediation for f in actionable)
             if has_remediation:
                 lines.append("\n### How to Fix\n")
-                for i, f in enumerate(report.findings, 1):
+                for i, f in enumerate(actionable, 1):
                     if f.remediation:
                         lines.append(
                             f"**{i}.** `{f.rule_id}` in `{f.file_path}:{f.line_start}`"

@@ -85,6 +85,11 @@ class PromptGuard:
             "- Be SPECIFIC. Reference actual code from the diff (variable names, function calls, line numbers).\n"
             "- Do NOT produce generic or vague findings like 'potential security issue'.\n"
             "- Only report issues you can clearly identify in the code. Do not speculate.\n"
+            "- Do NOT report informational summaries of what a file does. Only report actual problems.\n"
+            "- Do NOT use severity 'info' for file descriptions or code summaries. "
+            "'info' is ONLY for minor improvement suggestions with a concrete code change.\n"
+            "- Every finding MUST have a specific, actionable remediation with a concrete code change. "
+            "If you cannot suggest a concrete fix, do not report the finding.\n"
             '- If no issues are found, return: {"findings": []}\n'
             "- Do NOT include any text outside the JSON object. No markdown fences, no preamble."
         )
