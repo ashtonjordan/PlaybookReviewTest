@@ -18,6 +18,9 @@ env/
 htmlcov/
 *.cover
 
+# Kiro specs/steering (local dev only)
+.kiro/
+
 # IDE
 .vscode/
 .idea/
