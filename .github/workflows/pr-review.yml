@@ -1,0 +1,51 @@
+name: PR Code Review Agent
+
+on:
+  pull_request:
+    types: [opened, synchronize, reopened]
+
+env:
+  CODEGUARD_RELEASE_TAG: "v1.3.1"
+  CODEGUARD_REPO: "cosai-oasis/project-codeguard"
+  CODEGUARD_CHECKOUT_PATH: "codeguard"
+
+jobs:
+  review:
+    name: Code Review
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+
+    permissions:
+      contents: read
+      checks: write
+      pull-requests: write
+
+    steps:
+      - name: Check out Playbook repo
+        uses: actions/checkout@v4
+
+      - name: Check out CodeGuard repo at pinned release tag
+        uses: actions/checkout@v4
+        with:
+          repository: ${{ env.CODEGUARD_REPO }}
+          ref: ${{ env.CODEGUARD_RELEASE_TAG }}
+          path: ${{ env.CODEGUARD_CHECKOUT_PATH }}
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.13"
+
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install pyyaml
+
+      - name: Run PR Review Agent
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          PR_NUMBER: ${{ github.event.pull_request.number }}
+          PR_OWNER: ${{ github.repository_owner }}
+          PR_REPO: ${{ github.event.repository.name }}
+          COMMIT_SHA: ${{ github.event.pull_request.head.sha }}
+        run: python -m src.run_review

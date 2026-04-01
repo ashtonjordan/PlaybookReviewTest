@@ -8,92 +8,92 @@ Phased implementation of the GitHub PR Review Agent. Phase 1 delivers an MVP wit
 
 ### Phase 1: MVP — GitHub Action + CodeGuard Rules (Rule-Based Review)
 
-- [ ] 1. Set up project structure, data models, and testing framework
-  - [ ] 1.1 Create project directory structure (`src/`, `tests/unit/`, `tests/property/`, `tests/conftest.py`)
+- [x] 1. Set up project structure, data models, and testing framework
+  - [x] 1.1 Create project directory structure (`src/`, `tests/unit/`, `tests/property/`, `tests/conftest.py`)
     - Create `src/__init__.py`, `src/models.py`, `tests/__init__.py`, `tests/unit/__init__.py`, `tests/property/__init__.py`
     - Install dev dependencies: `pytest`, `hypothesis`, `pyyaml`
     - _Requirements: 3.1_
 
-  - [ ] 1.2 Implement data models in `src/models.py`
+  - [x] 1.2 Implement data models in `src/models.py`
     - Define `Severity` enum, `VALID_CATEGORIES` frozenset
     - Define `Rule`, `RuleSet`, `PRFile`, `FileDiff`, `Finding`, `ReviewReport`, `ReviewComment` dataclasses
     - Implement `ReviewReport.has_errors` property and verdict logic
     - _Requirements: 3.2, 3.4, 5.1, 5.2, 5.3_
 
-- [ ] 2. Implement ReviewRulesEngine
-  - [ ] 2.1 Create `src/review_rules_engine.py`
+- [x] 2. Implement ReviewRulesEngine
+  - [x] 2.1 Create `src/review_rules_engine.py`
     - Implement `load()` to parse YAML/JSON Rule_Set files
     - Implement `validate_rule()` to check required fields (id, category, description, severity, prompt_or_pattern) and valid category values
     - Implement `filter_by_category()` and `get_enabled_rules()`
     - Implement `print_rule_set()` for YAML/JSON serialization
     - _Requirements: 3.1, 3.2, 3.3, 3.4, 3.6, 3.7, 3.8, 3.9_
 
-  - [ ]* 2.2 Write property test: Rule_Set round-trip serialization
+  - [x] 2.2 Write property test: Rule_Set round-trip serialization
     - **Property 1: Rule_Set round-trip serialization**
     - Generate random valid RuleSet objects, print to YAML/JSON, parse back, assert equivalence
     - **Validates: Requirements 3.1, 3.8, 3.9**
 
-  - [ ]* 2.3 Write property test: Rule validation rejects incomplete/invalid rules
+  - [x] 2.3 Write property test: Rule validation rejects incomplete/invalid rules
     - **Property 2: Rule validation rejects incomplete or invalid rules**
     - Generate Rules with missing/invalid fields, assert validation returns descriptive errors
     - **Validates: Requirements 3.2, 3.3, 3.4**
 
-  - [ ]* 2.4 Write property test: Rule filtering by enabled flag and category
+  - [x] 2.4 Write property test: Rule filtering by enabled flag and category
     - **Property 3: Rule filtering by enabled flag and category**
     - Generate RuleSets, filter by category and enabled, assert correct subsets
     - **Validates: Requirements 3.6, 3.7**
 
-- [ ] 3. Implement PromptGuard file allowlist filtering
-  - [ ] 3.1 Create `src/prompt_guard.py`
+- [x] 3. Implement PromptGuard file allowlist filtering
+  - [x] 3.1 Create `src/prompt_guard.py`
     - Implement `DEFAULT_ALLOWLIST` class attribute
     - Implement `__init__` accepting optional custom allowlist
     - Implement `filter_files()` to retain only files with extensions in the allowlist
     - Stub `build_system_message()` and `validate_response_schema()` (Phase 2)
     - _Requirements: 9.1, 9.2, 9.7_
 
-  - [ ]* 3.2 Write property test: File allowlist filtering retains only code files
+  - [x] 3.2 Write property test: File allowlist filtering retains only code files
     - **Property 13: File allowlist filtering retains only code files**
     - Generate mixed-extension file lists, assert filtered list is correct subset
     - **Validates: Requirements 9.1**
 
-- [ ] 4. Implement ReviewReportGenerator and verdict logic
-  - [ ] 4.1 Create `src/report_generator.py`
+- [x] 4. Implement ReviewReportGenerator and verdict logic
+  - [x] 4.1 Create `src/report_generator.py`
     - Implement `generate()` to create ReviewReport from findings list
     - Verdict is "fail" if any finding has severity ERROR, "pass" otherwise
     - Summary counts findings grouped by severity
     - _Requirements: 5.1, 5.2, 5.3, 5.4, 5.5_
 
-  - [ ]* 4.2 Write property test: Verdict is "fail" iff any finding has severity "error"
+  - [x] 4.2 Write property test: Verdict is "fail" iff any finding has severity "error"
     - **Property 4: Review verdict is "fail" if and only if any finding has severity "error"**
     - Generate random Finding lists, assert verdict correctness
     - **Validates: Requirements 5.1, 5.2, 5.3**
 
-  - [ ]* 4.3 Write property test: Report summary counts match actual findings
+  - [x] 4.3 Write property test: Report summary counts match actual findings
     - **Property 5: Review report summary counts match actual findings**
     - Generate random Finding lists, assert summary counts equal actual counts per severity
     - **Validates: Requirements 5.4, 5.5**
 
 
-- [ ] 5. Implement StructuredLogger with secret redaction
-  - [ ] 5.1 Create `src/structured_logger.py`
+- [x] 5. Implement StructuredLogger with secret redaction
+  - [x] 5.1 Create `src/structured_logger.py`
     - Implement `__init__` with correlation_id
     - Implement `log()` to output structured JSON (correlation_id, level, message, timestamp)
     - Implement `redact()` to strip AWS keys, GitHub tokens, private key blocks, JWTs, connection strings, and password/secret/key/token/auth variable values
     - Apply redaction to all string fields before logging
     - _Requirements: 7.4, 7.5, 8.6_
 
-  - [ ]* 5.2 Write property test: Secret redaction in log output
+  - [x] 5.2 Write property test: Secret redaction in log output
     - **Property 17: Secret redaction in log output**
     - Generate strings with embedded secret patterns, assert redacted output contains no secrets
     - **Validates: Requirements 7.5, 8.6**
 
-  - [ ]* 5.3 Write property test: Structured JSON log output
+  - [x] 5.3 Write property test: Structured JSON log output
     - **Property 18: Structured JSON log output**
     - Generate log calls, assert output is valid JSON with required fields
     - **Validates: Requirements 7.4**
 
-- [ ] 6. Implement GitHubAPIClient
-  - [ ] 6.1 Create `src/github_api_client.py`
+- [x] 6. Implement GitHubAPIClient
+  - [x] 6.1 Create `src/github_api_client.py`
     - Implement `__init__` with github_token
     - Implement `fetch_pr_files()` to call GitHub REST API for changed files and diffs
     - Implement `create_check_run()` to create/update Check Runs (pending, success, failure)
@@ -102,37 +102,37 @@ Phased implementation of the GitHub PR Review Agent. Phase 1 delivers an MVP wit
     - Add retry with exponential backoff (max 3 retries) on transient failures
     - _Requirements: 2.1, 2.2, 2.3, 2.4, 6.1, 6.2, 6.3, 6.4, 6.5, 6.6_
 
-  - [ ]* 6.2 Write property test: Verdict-to-check-status mapping
+  - [x] 6.2 Write property test: Verdict-to-check-status mapping
     - **Property 6: Verdict-to-check-status mapping**
     - Generate ReviewReports, assert "pass" → "success" and "fail" → "failure"
     - **Validates: Requirements 6.1, 6.2**
 
-  - [ ]* 6.3 Write property test: Findings produce inline review comments at correct locations
+  - [x] 6.3 Write property test: Findings produce inline review comments at correct locations
     - **Property 7: Findings produce inline review comments at correct locations**
     - Generate ReviewReports with findings, assert each finding maps to a ReviewComment with matching file_path, line, and description
     - **Validates: Requirements 6.3**
 
-- [ ] 7. Implement retry decorator with exponential backoff
-  - [ ] 7.1 Create `src/retry.py`
+- [x] 7. Implement retry decorator with exponential backoff
+  - [x] 7.1 Create `src/retry.py`
     - Implement `with_retry` decorator with configurable max_retries, backoff_base, max_delay, and retryable_exceptions
     - Use exponential backoff with jitter: `delay = min(backoff_base * (2 ** attempt) + random.uniform(0, 1), max_delay)`
     - _Requirements: 2.3, 6.5, 7.2_
 
-  - [ ]* 7.2 Write property test: Retry with exponential backoff on transient failures
+  - [x] 7.2 Write property test: Retry with exponential backoff on transient failures
     - **Property 8: Retry with exponential backoff on transient failures**
     - Simulate transient failures, assert retry count and increasing delays
     - **Validates: Requirements 2.3, 6.5, 7.2**
 
-- [ ] 8. Implement CodeGuardLoader (Rule_Set loading only)
-  - [ ] 8.1 Create `src/codeguard_loader.py`
+- [x] 8. Implement CodeGuardLoader (Rule_Set loading only)
+  - [x] 8.1 Create `src/codeguard_loader.py`
     - Implement `__init__` with checkout_path and logger
     - Implement `load_rule_set()` to load and validate Rule_Set from the checked-out CodeGuard release directory
     - Implement `load_file_allowlist()` to extract configurable File_Allowlist from Rule_Set or return defaults
     - Stub `load_webex_registry()` (Phase 3)
     - _Requirements: 3.1, 9.7, 10.5_
 
-- [ ] 9. Wire MVP ReviewAgent orchestrator (rule-based, no AI)
-  - [ ] 9.1 Create `src/review_agent.py`
+- [x] 9. Wire MVP ReviewAgent orchestrator (rule-based, no AI)
+  - [x] 9.1 Create `src/review_agent.py`
     - Implement `__init__` accepting all component dependencies
     - Implement `run()` pipeline for MVP:
       1. Set Check_Status to "pending"
@@ -147,13 +147,13 @@ Phased implementation of the GitHub PR Review Agent. Phase 1 delivers an MVP wit
     - Wrap entire pipeline in try/except to set Check_Status "failure" on unhandled exceptions
     - _Requirements: 1.1, 1.2, 1.4, 2.1, 5.1, 6.1, 6.2, 6.3, 6.4, 7.1, 9.1, 9.2_
 
-  - [ ]* 9.2 Write property test: Unrecoverable errors set check status to failure
+  - [x] 9.2 Write property test: Unrecoverable errors set check status to failure
     - **Property 9: Unrecoverable errors set check status to failure**
     - Simulate unhandled exceptions, assert Check_Status set to "failure" and error logged
     - **Validates: Requirements 7.1**
 
-- [ ] 10. Create GitHub Action workflow file
-  - [ ] 10.1 Create `.github/workflows/pr-review.yml`
+- [x] 10. Create GitHub Action workflow file
+  - [x] 10.1 Create `.github/workflows/pr-review.yml`
     - Trigger on `pull_request` events: opened, synchronize, reopened
     - Run on `ubuntu-latest`
     - Check out the Playbook repo
@@ -164,7 +164,7 @@ Phased implementation of the GitHub PR Review Agent. Phase 1 delivers an MVP wit
     - Set `timeout-minutes` for job-level timeout
     - _Requirements: 1.1, 1.3, 1.4, 7.3, 10.1, 10.2, 10.3, 10.4_
 
-- [ ] 11. Checkpoint — Phase 1 MVP
+- [x] 11. Checkpoint — Phase 1 MVP
   - Ensure all tests pass, ask the user if questions arise.
   - Verify: rule loading, rule validation, file filtering, report generation, verdict logic, check status reporting, structured logging, and secret redaction all work end-to-end without AI.
 
