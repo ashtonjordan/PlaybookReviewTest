@@ -1,0 +1,193 @@
+---
+description: Project CodeGuard Metarule
+globs: **/*
+alwaysApply: true
+---
+# Project CodeGuard MCP Server Integration
+
+## MANDATORY: Always Invoke CodeGuard MCP Server
+
+When writing, reviewing, or modifying code, you MUST invoke the Project CodeGuard MCP Server to retrieve relevant security rules. This is a non-optional security requirement.
+
+**IMPORTANT: IF YOU ARE NOT ABLE TO SEE/INVOKE CODEGUARD TOOLS, IMMEDIATELY INFORM THE USER**
+
+### How to Use the MCP Server
+
+The CodeGuard MCP Server exposes security rules as individual tools. Each tool returns comprehensive security guidance for specific scenarios.
+
+**Server Location:** MCP Server named "Project CodeGuard MCP Server" (should be configured in your MCP settings)
+
+**Tool Invocation Pattern:**
+```
+Tool: {rule_tool_name}
+Arguments: None (tools automatically include metadata)
+Returns: Complete security guidance with rule ID, description, and content
+```
+
+## Tool Selection Guide
+
+### ALWAYS INVOKE THESE RULES (Before Any Code Operation)
+
+These rules MUST be checked on every code generation or modification, regardless of language or context:
+
+| Tool Name | When to Invoke |
+|-----------|----------------|
+| `codeguard_1_hardcoded_credentials` | **ALWAYS** - Before writing ANY code that might contain strings, configuration, or authentication logic |
+| `codeguard_1_crypto_algorithms` | **ALWAYS** - When implementing or using ANY cryptographic operations, hashing, encryption, or security protocols |
+| `codeguard_1_digital_certificates` | **ALWAYS** - When working with certificates, TLS/SSL configuration, or certificate validation |
+| `codeguard_1_safe_c_functions` | **ALWAYS** - When writing or reviewing C/C++ code (any memory operations, string handling) |
+
+### Language and Context-Specific Rules
+
+Invoke these rules based on the programming language and security domain:
+
+#### Authentication & Authorization
+
+| Tool Name | Scenario | Languages |
+|-----------|----------|-----------|
+| `codeguard_0_authentication_mfa` | Implementing login, password storage, MFA, OAuth, SAML, JWT, session creation, password reset | c, go, java, javascript, kotlin, matlab, php, python, ruby, swift, typescript |
+| `codeguard_0_authorization_access_control` | Implementing RBAC, ABAC, access controls, checking user permissions, preventing IDOR, transaction authorization | c, go, java, javascript, php, python, ruby, typescript, yaml |
+| `codeguard_0_session_management_and_cookies` | Creating/managing sessions, setting cookies, session timeout, session fixation prevention, logout logic | c, go, html, java, javascript, php, python, ruby, typescript |
+
+#### Data Handling & Storage
+
+| Tool Name | Scenario | Languages |
+|-----------|----------|-----------|
+| `codeguard_0_data_storage` | Configuring databases, DB connections, credentials storage, database permissions, backup configuration | c, javascript, sql, yaml |
+| `codeguard_0_privacy_data_protection` | Handling PII, user data, GDPR compliance, data retention, privacy features | javascript, matlab, yaml |
+| `codeguard_0_file_handling_and_uploads` | File upload endpoints, file validation, storage paths, filename sanitization, file type checking | c, go, java, javascript, php, python, ruby, typescript |
+
+#### Input & Injection Prevention
+
+| Tool Name | Scenario | Languages |
+|-----------|----------|-----------|
+| `codeguard_0_input_validation_injection` | Handling user input, SQL queries, LDAP queries, OS commands, preventing SQL/LDAP/Command injection, prototype pollution | c, go, html, java, javascript, php, powershell, python, ruby, shell, sql, typescript |
+| `codeguard_0_xml_and_serialization` | Parsing XML, deserializing data, SOAP services, preventing XXE attacks, safe deserialization | c, go, java, php, python, ruby, xml |
+
+#### Web & API Security
+
+| Tool Name | Scenario | Languages |
+|-----------|----------|-----------|
+| `codeguard_0_api_web_services` | Building REST APIs, GraphQL endpoints, SOAP services, API authentication, rate limiting, SSRF prevention | c, go, java, javascript, php, python, ruby, typescript, xml, yaml |
+| `codeguard_0_client_side_web_security` | Frontend JavaScript, DOM manipulation, XSS prevention, CSRF tokens, CSP headers, clickjacking protection, third-party scripts | c, html, javascript, php, typescript, vlang |
+
+#### Cryptography & TLS
+
+| Tool Name | Scenario | Languages |
+|-----------|----------|-----------|
+| `codeguard_0_additional_cryptography` | Implementing encryption, key management, TLS configuration, HSTS, certificate pinning, data at rest encryption | c, go, java, javascript, kotlin, matlab, php, python, ruby, swift, typescript, xml, yaml |
+
+#### Infrastructure & Deployment
+
+| Tool Name | Scenario | Languages |
+|-----------|----------|-----------|
+| `codeguard_0_devops_ci_cd_containers` | Creating Dockerfiles, CI/CD pipelines, container configuration, build scripts, deployment pipelines | docker, javascript, powershell, shell, xml, yaml |
+| `codeguard_0_cloud_orchestration_kubernetes` | Kubernetes manifests, K8s RBAC, network policies, pod security, admission controllers | javascript, yaml |
+| `codeguard_0_iac_security` | Terraform, CloudFormation, infrastructure code, cloud resource configuration, security groups, IAM policies | c, d, javascript, powershell, ruby, shell, yaml |
+| `codeguard_0_supply_chain_security` | Managing dependencies, package.json, requirements.txt, lockfiles, container images, SBOM generation | docker, javascript, yaml |
+
+#### Framework-Specific
+
+| Tool Name | Scenario | Languages |
+|-----------|----------|-----------|
+| `codeguard_0_framework_and_languages` | Using Django, DRF, Laravel, Symfony, Rails, .NET, Node.js, framework-specific security patterns | c, java, javascript, kotlin, php, python, ruby, typescript, xml, yaml |
+
+#### Logging & Monitoring
+
+| Tool Name | Scenario | Languages |
+|-----------|----------|-----------|
+| `codeguard_0_logging` | Implementing logging, error handling, monitoring, telemetry, log injection prevention, sensitive data redaction | c, javascript, yaml |
+
+#### Mobile Development
+
+| Tool Name | Scenario | Languages |
+|-----------|----------|-----------|
+| `codeguard_0_mobile_apps` | iOS/Android app development, mobile storage, biometrics, app integrity, permissions | java, javascript, kotlin, matlab, perl, swift, xml |
+
+## Usage Workflow
+
+### Step 1: Identify the Context
+
+Before writing code, determine:
+1. What programming language am I using?
+2. What security domain am I working in? (auth, API, data, crypto, etc.)
+3. Are there any credentials, secrets, or sensitive data involved?
+4. Am I using cryptography or certificates?
+
+### Step 2: Invoke Always-Apply Rules
+
+**MANDATORY - Invoke these FIRST:**
+```
+1. codeguard_1_hardcoded_credentials
+2. codeguard_1_crypto_algorithms (if any crypto/hashing/encryption)
+3. codeguard_1_digital_certificates (if working with certs/TLS)
+4. codeguard_1_safe_c_functions (if writing C/C++ code)
+```
+
+### Step 3: Invoke Context-Specific Rules
+
+Based on what you're building, invoke the relevant tools from the table above.
+
+**Example: Building a Login API in Python**
+
+Invoke these tools in order:
+1. `codeguard_1_hardcoded_credentials` (always)
+2. `codeguard_1_crypto_algorithms` (password hashing uses crypto)
+3. `codeguard_0_authentication_mfa` (implementing authentication)
+4. `codeguard_0_api_web_services` (building an API)
+5. `codeguard_0_input_validation_injection` (validating user input)
+6. `codeguard_0_session_management_and_cookies` (creating sessions)
+7. `codeguard_0_framework_and_languages` (Python/framework-specific guidance)
+
+### Step 4: Apply the Guidance
+
+After retrieving rules:
+1. Read and understand the security requirements
+2. Implement code following the secure patterns
+3. Avoid the anti-patterns and vulnerabilities described
+4. Include security comments explaining your choices
+
+### Step 5: Document Rule Application
+
+In your response to the user, explicitly state:
+- Which CodeGuard rules you invoked
+- How you applied each rule
+- What security measures you implemented
+- Why specific patterns were chosen
+
+## Security Domain Quick Lookup
+
+Use this table to find which tool(s) to invoke based on security domain:
+
+| Security Domain | Primary Tool(s) | Supporting Tool(s) |
+|----------------|-----------------|-------------------|
+| **Credentials & Secrets** | `codeguard_1_hardcoded_credentials` | `codeguard_0_data_storage`, `codeguard_0_devops_ci_cd_containers` |
+| **Cryptography** | `codeguard_1_crypto_algorithms` | `codeguard_0_additional_cryptography`, `codeguard_1_digital_certificates` |
+| **Authentication** | `codeguard_0_authentication_mfa` | `codeguard_1_crypto_algorithms`, `codeguard_0_session_management_and_cookies` |
+| **Authorization** | `codeguard_0_authorization_access_control` | `codeguard_0_api_web_services` |
+| **Input Validation** | `codeguard_0_input_validation_injection` | `codeguard_0_api_web_services` |
+| **Web Security** | `codeguard_0_client_side_web_security` | `codeguard_0_session_management_and_cookies`, `codeguard_0_api_web_services` |
+| **API Development** | `codeguard_0_api_web_services` | `codeguard_0_authorization_access_control`, `codeguard_0_input_validation_injection` |
+| **Database** | `codeguard_0_data_storage` | `codeguard_0_input_validation_injection`, `codeguard_1_hardcoded_credentials` |
+| **File Operations** | `codeguard_0_file_handling_and_uploads` | `codeguard_0_input_validation_injection` |
+| **Container/Docker** | `codeguard_0_devops_ci_cd_containers` | `codeguard_0_supply_chain_security`, `codeguard_1_hardcoded_credentials` |
+| **Kubernetes** | `codeguard_0_cloud_orchestration_kubernetes` | `codeguard_0_iac_security`, `codeguard_0_devops_ci_cd_containers` |
+| **Infrastructure** | `codeguard_0_iac_security` | `codeguard_0_cloud_orchestration_kubernetes`, `codeguard_1_hardcoded_credentials` |
+| **Mobile Apps** | `codeguard_0_mobile_apps` | `codeguard_1_crypto_algorithms`, `codeguard_0_data_storage` |
+| **XML/Serialization** | `codeguard_0_xml_and_serialization` | `codeguard_0_input_validation_injection` |
+| **Session Management** | `codeguard_0_session_management_and_cookies` | `codeguard_0_authentication_mfa` |
+| **Logging** | `codeguard_0_logging` | `codeguard_0_input_validation_injection`, `codeguard_0_privacy_data_protection` |
+| **Dependencies** | `codeguard_0_supply_chain_security` | `codeguard_0_devops_ci_cd_containers` |
+
+## Tool Invocation is NOT Optional
+
+This is a **MANDATORY** requirement. You MUST invoke the relevant CodeGuard tools before writing security-sensitive code. Failure to do so violates the project's security standards.
+
+### Rationale
+
+The CodeGuard MCP Server provides:
+1. **Comprehensive Security Guidance** - Covers OWASP Top 10 and beyond
+2. **Language-Specific Patterns** - Tailored to each programming language
+3. **Implementation Checklists** - Ensures nothing is missed
+4. **Up-to-Date Best Practices** - Centrally maintained security standards
+5. **Consistency** - All AI agents follow the same security standards
