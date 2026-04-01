@@ -12,6 +12,49 @@ from src.review_agent import ReviewAgent
 from src.structured_logger import StructuredLogger
 
 
+def _create_ai_client(logger: StructuredLogger):
+    """Create AIModelClient if AWS credentials and model config are available."""
+    model_id = os.environ.get("BEDROCK_MODEL_ID", "")
+    if not model_id:
+        logger.log("info", "BEDROCK_MODEL_ID not set, running in rule-based mode only")
+        return None
+
+    try:
+        import boto3
+    except ImportError:
+        logger.log("warning", "boto3 not installed, skipping AI analysis")
+        return None
+
+    from src.ai_model_client import AIModelClient
+
+    # boto3 will pick up credentials from the environment
+    # (set by aws-actions/configure-aws-credentials)
+    session = boto3.Session(region_name=os.environ.get("AWS_REGION", "us-east-1"))
+
+    # Verify credentials are available before proceeding
+    credentials = session.get_credentials()
+    if credentials is None:
+        logger.log("warning", "No AWS credentials found, skipping AI analysis")
+        return None
+
+    guardrail_id = os.environ.get("BEDROCK_GUARDRAIL_ID") or None
+    guardrail_version = os.environ.get("BEDROCK_GUARDRAIL_VERSION") or None
+
+    logger.log(
+        "info",
+        "AI analysis enabled",
+        model_id=model_id,
+        guardrail_id=guardrail_id or "none",
+    )
+
+    return AIModelClient(
+        boto3_session=session,
+        model_id=model_id,
+        guardrail_id=guardrail_id,
+        guardrail_version=guardrail_version,
+    )
+
+
 def main() -> None:
     github_token = os.environ.get("GITHUB_TOKEN", "")
     pr_number = int(os.environ.get("PR_NUMBER", "0"))
@@ -39,6 +82,7 @@ def main() -> None:
 
     prompt_guard = PromptGuard(file_allowlist=allowlist)
     report_generator = ReviewReportGenerator()
+    ai_client = _create_ai_client(logger)
 
     agent = ReviewAgent(
         github_client=github_client,
@@ -46,6 +90,7 @@ def main() -> None:
         prompt_guard=prompt_guard,
         report_generator=report_generator,
         logger=logger,
+        ai_client=ai_client,
     )
 
     agent.run(owner=owner, repo=repo, pr_number=pr_number, commit_sha=commit_sha)
