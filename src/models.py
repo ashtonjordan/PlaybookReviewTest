@@ -107,6 +107,7 @@ class Finding:
     category: str
     severity: Severity
     description: str
+    remediation: str = ""  # Actionable fix suggestion from AI
 
 
 @dataclass

@@ -157,4 +157,6 @@ def test_findings_produce_correct_review_comments(
     for finding, comment in zip(report.findings, comments):
         assert comment.file_path == finding.file_path
         assert comment.line == finding.line_start
-        assert comment.body == finding.description
+        assert finding.description in comment.body
+        assert finding.rule_id in comment.body
+        assert finding.severity.value.upper() in comment.body

@@ -265,15 +265,21 @@ class ReviewAgent:
             except ValueError:
                 severity = Severity.INFO
 
+            # Build rich description including remediation
+            description = item.get("description", "")
+            remediation = item.get("remediation", "")
+            rule_id = item.get("rule_id", "ai-finding")
+
             findings.append(
                 Finding(
                     file_path=item.get("file_path", ""),
                     line_start=int(item.get("line_number", 0)),
                     line_end=int(item.get("line_number", 0)),
-                    rule_id=item.get("rule_id", "ai-finding"),
+                    rule_id=rule_id,
                     category=item.get("category", "ai-review"),
                     severity=severity,
-                    description=item.get("description", ""),
+                    description=description,
+                    remediation=remediation,
                 )
             )
         return findings
@@ -331,12 +337,53 @@ class ReviewAgent:
 
     @staticmethod
     def _format_summary(report) -> str:
-        """Format a ReviewReport into a human-readable summary string."""
-        lines = [f"## PR Review — {report.verdict.upper()}\n"]
-        lines.append(f"**Findings:** {len(report.findings)} total")
-        for severity, count in sorted(report.summary.items()):
-            if count > 0:
-                lines.append(f"- {severity}: {count}")
-        if not report.findings:
-            lines.append("\nNo issues found. Looks good!")
+        """Format a ReviewReport into a rich, actionable summary string."""
+        verdict_icon = "✅" if report.verdict == "pass" else "❌"
+        lines = [f"## {verdict_icon} PR Review — {report.verdict.upper()}\n"]
+
+        # Severity breakdown
+        error_count = report.summary.get("error", 0)
+        warning_count = report.summary.get("warning", 0)
+        info_count = report.summary.get("info", 0)
+
+        lines.append(
+            f"**{len(report.findings)} finding(s)** | "
+            f"🔴 {error_count} error(s) | 🟡 {warning_count} warning(s) | 🔵 {info_count} info\n"
+        )
+
+        if error_count > 0:
+            lines.append(
+                "⚠️ **This PR has errors that must be resolved before merging.**\n"
+            )
+
+        # Per-finding details
+        if report.findings:
+            lines.append("### Findings\n")
+            lines.append("| # | Severity | Rule | File | Line | Description |")
+            lines.append("|---|----------|------|------|------|-------------|")
+
+            severity_icons = {"error": "🔴", "warning": "🟡", "info": "🔵"}
+            for i, f in enumerate(report.findings, 1):
+                icon = severity_icons.get(f.severity.value, "⚪")
+                desc_short = f.description[:100]
+                if len(f.description) > 100:
+                    desc_short += "..."
+                lines.append(
+                    f"| {i} | {icon} {f.severity.value} | `{f.rule_id}` | "
+                    f"`{f.file_path}` | {f.line_start} | {desc_short} |"
+                )
+
+            # Remediation details
+            has_remediation = any(f.remediation for f in report.findings)
+            if has_remediation:
+                lines.append("\n### How to Fix\n")
+                for i, f in enumerate(report.findings, 1):
+                    if f.remediation:
+                        lines.append(
+                            f"**{i}.** `{f.rule_id}` in `{f.file_path}:{f.line_start}`"
+                        )
+                        lines.append(f"   {f.remediation}\n")
+        else:
+            lines.append("\n✨ No issues found. Looks good!")
+
         return "\n".join(lines)

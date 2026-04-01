@@ -117,19 +117,32 @@ class GitHubAPIClient:
 
     @staticmethod
     def findings_to_comments(report: ReviewReport) -> list[ReviewComment]:
-        """Convert ReviewReport findings into ReviewComment objects.
+        """Convert ReviewReport findings into rich ReviewComment objects.
 
-        Each finding maps to a comment at the finding's file_path and line_start,
-        with the description as the comment body.
+        Each comment includes severity badge, rule ID, description, and remediation.
         """
-        return [
-            ReviewComment(
-                file_path=f.file_path,
-                line=f.line_start,
-                body=f.description,
+        severity_icons = {"error": "🔴", "warning": "🟡", "info": "🔵"}
+
+        comments = []
+        for f in report.findings:
+            icon = severity_icons.get(f.severity.value, "⚪")
+            lines = [
+                f"{icon} **{f.severity.value.upper()}** | Rule: `{f.rule_id}`",
+                "",
+                f.description,
+            ]
+            if f.remediation:
+                lines.append("")
+                lines.append(f"**How to fix:** {f.remediation}")
+
+            comments.append(
+                ReviewComment(
+                    file_path=f.file_path,
+                    line=f.line_start,
+                    body="\n".join(lines),
+                )
             )
-            for f in report.findings
-        ]
+        return comments
 
     # -- Internal helpers --
 
