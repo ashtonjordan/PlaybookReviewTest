@@ -121,6 +121,9 @@ class GitHubAPIClient:
 
         Only posts inline comments for error and warning severity.
         Info findings are included in the summary only to reduce noise.
+        Findings without a valid file_path or line number (e.g., project-level
+        findings like "no Webex integration detected") are skipped — they
+        appear in the summary comment instead.
         """
         severity_icons = {"error": "🔴", "warning": "🟡", "info": "🔵"}
 
@@ -128,6 +131,10 @@ class GitHubAPIClient:
         for f in report.findings:
             # Skip info-level findings from inline comments — summary only
             if f.severity.value == "info":
+                continue
+
+            # Skip project-level findings that have no file/line context
+            if not f.file_path or f.line_start < 1:
                 continue
 
             icon = severity_icons.get(f.severity.value, "⚪")
