@@ -1,0 +1,460 @@
+sdk_packages:
+- name: webexteamssdk
+  language: python
+  import_patterns:
+  - import\s+webexteamssdk
+  - from\s+webexteamssdk\s+import
+  technology: Messaging
+- name: wxc_sdk
+  language: python
+  import_patterns:
+  - import\s+wxc_sdk
+  - from\s+wxc_sdk\s+import
+  technology: Calling
+- name: webex-js-sdk
+  language: javascript
+  import_patterns:
+  - require\s*\(\s*['"]webex['"]
+  - from\s+['"]webex['"]
+  - import\s+.*\s+from\s+['"]webex['"]
+  technology: Messaging
+- name: '@webex/embedded-app-sdk'
+  language: javascript
+  import_patterns:
+  - '@webex/embedded-app-sdk'
+  technology: Embedded Apps
+- name: '@webex/widgets'
+  language: javascript
+  import_patterns:
+  - '@webex/widgets'
+  technology: Messaging
+- name: webex-node-bot-framework
+  language: javascript
+  import_patterns:
+  - webex-node-bot-framework
+  technology: Messaging
+- name: ciscosparkapi
+  language: python
+  import_patterns:
+  - import\s+ciscosparkapi
+  - from\s+ciscosparkapi\s+import
+  technology: Messaging
+rest_endpoints:
+- path: /v1/messages
+  method: GET
+  technology: Messaging
+  description: List messages in a room
+- path: /v1/messages
+  method: POST
+  technology: Messaging
+  description: Create a message
+- path: /v1/messages/{messageId}
+  method: GET
+  technology: Messaging
+  description: Get message details
+- path: /v1/messages/{messageId}
+  method: PUT
+  technology: Messaging
+  description: Edit a message
+- path: /v1/messages/{messageId}
+  method: DELETE
+  technology: Messaging
+  description: Delete a message
+- path: /v1/messages/direct
+  method: GET
+  technology: Messaging
+  description: List direct messages
+- path: /v1/rooms
+  method: GET
+  technology: Messaging
+  description: List rooms
+- path: /v1/rooms
+  method: POST
+  technology: Messaging
+  description: Create a room
+- path: /v1/rooms/{roomId}
+  method: GET
+  technology: Messaging
+  description: Get room details
+- path: /v1/rooms/{roomId}
+  method: PUT
+  technology: Messaging
+  description: Update a room
+- path: /v1/rooms/{roomId}
+  method: DELETE
+  technology: Messaging
+  description: Delete a room
+- path: /v1/rooms/{roomId}/meetingInfo
+  method: GET
+  technology: Messaging
+  description: Get room meeting details
+- path: /v1/people
+  method: GET
+  technology: Admin
+  description: List people
+- path: /v1/people
+  method: POST
+  technology: Admin
+  description: Create a person
+- path: /v1/people/{personId}
+  method: GET
+  technology: Admin
+  description: Get person details
+- path: /v1/people/{personId}
+  method: PUT
+  technology: Admin
+  description: Update a person
+- path: /v1/people/{personId}
+  method: DELETE
+  technology: Admin
+  description: Delete a person
+- path: /v1/people/me
+  method: GET
+  technology: Admin
+  description: Get my own details
+- path: /v1/teams
+  method: GET
+  technology: Messaging
+  description: List teams
+- path: /v1/teams
+  method: POST
+  technology: Messaging
+  description: Create a team
+- path: /v1/teams/{teamId}
+  method: GET
+  technology: Messaging
+  description: Get team details
+- path: /v1/teams/{teamId}
+  method: PUT
+  technology: Messaging
+  description: Update a team
+- path: /v1/teams/{teamId}
+  method: DELETE
+  technology: Messaging
+  description: Delete a team
+- path: /v1/team/memberships
+  method: GET
+  technology: Messaging
+  description: List team memberships
+- path: /v1/team/memberships
+  method: POST
+  technology: Messaging
+  description: Create a team membership
+- path: /v1/team/memberships/{membershipId}
+  method: GET
+  technology: Messaging
+  description: Get team membership details
+- path: /v1/team/memberships/{membershipId}
+  method: PUT
+  technology: Messaging
+  description: Update a team membership
+- path: /v1/team/memberships/{membershipId}
+  method: DELETE
+  technology: Messaging
+  description: Delete a team membership
+- path: /v1/memberships
+  method: GET
+  technology: Messaging
+  description: List memberships
+- path: /v1/memberships
+  method: POST
+  technology: Messaging
+  description: Create a membership
+- path: /v1/memberships/{membershipId}
+  method: GET
+  technology: Messaging
+  description: Get membership details
+- path: /v1/memberships/{membershipId}
+  method: PUT
+  technology: Messaging
+  description: Update a membership
+- path: /v1/memberships/{membershipId}
+  method: DELETE
+  technology: Messaging
+  description: Delete a membership
+- path: /v1/webhooks
+  method: GET
+  technology: Messaging
+  description: List webhooks
+- path: /v1/webhooks
+  method: POST
+  technology: Messaging
+  description: Create a webhook
+- path: /v1/webhooks/{webhookId}
+  method: GET
+  technology: Messaging
+  description: Get webhook details
+- path: /v1/webhooks/{webhookId}
+  method: PUT
+  technology: Messaging
+  description: Update a webhook
+- path: /v1/webhooks/{webhookId}
+  method: DELETE
+  technology: Messaging
+  description: Delete a webhook
+- path: /v1/attachment/actions
+  method: POST
+  technology: Messaging
+  description: Create an attachment action
+- path: /v1/attachment/actions/{id}
+  method: GET
+  technology: Messaging
+  description: Get attachment action details
+- path: /v1/events
+  method: GET
+  technology: Messaging
+  description: List events
+- path: /v1/events/{eventId}
+  method: GET
+  technology: Messaging
+  description: Get event details
+- path: /v1/meetings
+  method: GET
+  technology: Meetings
+  description: List meetings
+- path: /v1/meetings
+  method: POST
+  technology: Meetings
+  description: Create a meeting
+- path: /v1/meetings/{meetingId}
+  method: GET
+  technology: Meetings
+  description: Get meeting details
+- path: /v1/meetings/{meetingId}
+  method: PUT
+  technology: Meetings
+  description: Update a meeting
+- path: /v1/meetings/{meetingId}
+  method: DELETE
+  technology: Meetings
+  description: Delete a meeting
+- path: /v1/meetings/{meetingId}/participants
+  method: GET
+  technology: Meetings
+  description: List meeting participants
+- path: /v1/meetings/{meetingId}/registrants
+  method: GET
+  technology: Meetings
+  description: List meeting registrants
+- path: /v1/meetings/{meetingId}/registrants
+  method: POST
+  technology: Meetings
+  description: Register for a meeting
+- path: /v1/meetings/preferences
+  method: GET
+  technology: Meetings
+  description: Get meeting preferences
+- path: /v1/meetings/preferences/sites
+  method: GET
+  technology: Meetings
+  description: Get meeting preference sites
+- path: /v1/recordings
+  method: GET
+  technology: Meetings
+  description: List recordings
+- path: /v1/recordings/{recordingId}
+  method: GET
+  technology: Meetings
+  description: Get recording details
+- path: /v1/recordings/{recordingId}
+  method: DELETE
+  technology: Meetings
+  description: Delete a recording
+- path: /v1/meeting/transcripts
+  method: GET
+  technology: Meetings
+  description: List meeting transcripts
+- path: /v1/meeting/transcripts/{transcriptId}
+  method: GET
+  technology: Meetings
+  description: Get transcript details
+- path: /v1/telephony/calls
+  method: GET
+  technology: Calling
+  description: List calls
+- path: /v1/telephony/calls/dial
+  method: POST
+  technology: Calling
+  description: Dial a number
+- path: /v1/telephony/calls/answer
+  method: POST
+  technology: Calling
+  description: Answer a call
+- path: /v1/telephony/calls/hangup
+  method: POST
+  technology: Calling
+  description: Hang up a call
+- path: /v1/telephony/calls/hold
+  method: POST
+  technology: Calling
+  description: Hold a call
+- path: /v1/telephony/calls/resume
+  method: POST
+  technology: Calling
+  description: Resume a held call
+- path: /v1/telephony/calls/transfer
+  method: POST
+  technology: Calling
+  description: Transfer a call
+- path: /v1/telephony/calls/history
+  method: GET
+  technology: Calling
+  description: Get call history
+- path: /v1/telephony/config/locations
+  method: GET
+  technology: Calling
+  description: List calling locations
+- path: /v1/telephony/config/huntGroups
+  method: GET
+  technology: Calling
+  description: List hunt groups
+- path: /v1/telephony/config/autoAttendants
+  method: GET
+  technology: Calling
+  description: List auto attendants
+- path: /v1/telephony/config/callQueues
+  method: GET
+  technology: Calling
+  description: List call queues
+- path: /v1/telephony/voicemail/summary
+  method: GET
+  technology: Calling
+  description: Get voicemail summary
+- path: /v1/contactCenter/agents
+  method: GET
+  technology: Contact Center
+  description: List contact center agents
+- path: /v1/contactCenter/queues
+  method: GET
+  technology: Contact Center
+  description: List contact center queues
+- path: /v1/devices
+  method: GET
+  technology: Devices
+  description: List devices
+- path: /v1/devices
+  method: POST
+  technology: Devices
+  description: Create a device
+- path: /v1/devices/{deviceId}
+  method: GET
+  technology: Devices
+  description: Get device details
+- path: /v1/devices/{deviceId}
+  method: PUT
+  technology: Devices
+  description: Update a device
+- path: /v1/devices/{deviceId}
+  method: DELETE
+  technology: Devices
+  description: Delete a device
+- path: /v1/devices/{deviceId}/activationCode
+  method: POST
+  technology: Devices
+  description: Create device activation code
+- path: /v1/workspaces
+  method: GET
+  technology: Devices
+  description: List workspaces
+- path: /v1/workspaces
+  method: POST
+  technology: Devices
+  description: Create a workspace
+- path: /v1/workspaces/{workspaceId}
+  method: GET
+  technology: Devices
+  description: Get workspace details
+- path: /v1/workspaces/{workspaceId}
+  method: PUT
+  technology: Devices
+  description: Update a workspace
+- path: /v1/workspaces/{workspaceId}
+  method: DELETE
+  technology: Devices
+  description: Delete a workspace
+- path: /v1/organizations
+  method: GET
+  technology: Admin
+  description: List organizations
+- path: /v1/organizations/{orgId}
+  method: GET
+  technology: Admin
+  description: Get organization details
+- path: /v1/licenses
+  method: GET
+  technology: Admin
+  description: List licenses
+- path: /v1/licenses/{licenseId}
+  method: GET
+  technology: Admin
+  description: Get license details
+- path: /v1/roles
+  method: GET
+  technology: Admin
+  description: List roles
+- path: /v1/roles/{roleId}
+  method: GET
+  technology: Admin
+  description: Get role details
+- path: /v1/adminAudit/events
+  method: GET
+  technology: Admin
+  description: List admin audit events
+- path: /v1/resourceGroups
+  method: GET
+  technology: Admin
+  description: List resource groups
+- path: /v1/resourceGroups/{resourceGroupId}
+  method: GET
+  technology: Admin
+  description: Get resource group details
+- path: /v1/resourceGroup/memberships
+  method: GET
+  technology: Admin
+  description: List resource group memberships
+- path: /v1/authorizations
+  method: GET
+  technology: Admin
+  description: List authorizations
+- path: /v1/authorizations/{authorizationId}
+  method: GET
+  technology: Admin
+  description: Get authorization details
+- path: /v1/authorizations/{authorizationId}
+  method: DELETE
+  technology: Admin
+  description: Delete an authorization
+- path: /v1/contents/{contentId}
+  method: GET
+  technology: Messaging
+  description: Get file content
+manifest_patterns:
+- pattern_type: agent_desktop_layout
+  detection_keys:
+  - area
+  - comp
+  technology: Contact Center
+  description: Agent Desktop widget layout JSON for Contact Center
+integration_patterns:
+- pattern_type: byova_grpc
+  detection_patterns:
+  - VoiceVirtualAgent
+  - ListVirtualAgents
+  - ProcessCallerInput
+  - voicevirtualagent\.proto
+  - byova_common
+  technology: Contact Center
+  description: BYOVA gRPC service definitions for Contact Center virtual agents
+- pattern_type: connect_flow
+  detection_patterns:
+  - webexconnect
+  - imiconnect
+  - WxCC_Flow
+  technology: Contact Center
+  description: Webex Connect flow references
+- pattern_type: mcp_tool
+  detection_patterns:
+  - webex-mcp
+  - webex_mcp
+  technology: Messaging
+  description: MCP tool references for Webex services

@@ -1,0 +1,24 @@
+You • Alright Adam, Thanks for the feedback. I'll work on the next phase, bringing in the confirming if any actual api links exist. And if so, if they are within the published Webex API PostMan collections 🫱🏾‍🫲🏼
+And based on this, do we agree https://jira-eng-gpk2.cisco.com/jira/browse/SE-1649 is complete. As the criteria is, pass all CodeGuard rules, and if an API is included. Then ensure it's apart of the published Webex API postman collection?
+
+Adam Weeks • I still have questions on the API usage, especially around widgets. Agent desktop widgets (like my RSS feed reader) would fail our "uses a webex API" test as it doesn't actually call a webex API, but it is a solid blueprint.
+
+You • Adam Good call out, shall we set up a call to further groom this before I start phase 2? As it doesn't have to be a hard requirement. Though if there is a mention of "webexapis.com/v1" or something like that. Then apply the rules, but as in your case. If it's widget, then it can be ignored.
+
+Adam Weeks • I do like that idea about ignoring widgets. Or we could frame it as "building a desktop widget by nature is using webex APIs for embedding application in the agent/supervisor desktop" 😜
+
+You • That sounds like a winner, let me work on just creating that flow first. Then can dial back on the exclusion of widgets. Though are you good with the scope of 1649 being defined. Meaning CodeGuard, and Webex API postman collections as the criteria check?
+
+Adam Weeks • Those sound good. What about SDKs that obscure the rest API call?
+
+You • Adam yeah for now, if what I'm thinking around this. It wont effect anything that doesn't include something that looks like or the code hints at it being an api call. But I think you are saying, we still need to be able to vet/confirm if something from Webex is being used. For SDK's, I'd think we should be looking for SDK imports from Webex. Which if we see that, maybe call it good to go. And for actual api calls, see if they conform to our apigateway url. And vet the full apis against the postman collections.
+
+Adam Weeks • Right. I'd like to have all those items clearly defined before I would say that https://jira-eng-gpk2.cisco.com/jira/browse/SE-1649 is complete. When we say "it should use a webex api" that does not mean "webex rest api". SDKs, Flows, Widgets, Embedded Apps, BYOVA, even MCPs are all Application Programming Interfaces for the Webex ecosystem and should count as a qualifier for the API requirement. Sure, we can vet that a REST API being called in a blueprint is a valid REST API via postman collection, but it isn't as high a priority as just making sure that SOMETHING in the Webex Developer ecosystem is being utilized.
+
+You • 😎 Well that simplifies it even more. Just find something in there that says webex, and we can call it to the good. Fair enough, let me just write that down. And then I'd admit/agree that is "Defining what the criteria is". And move on from there. To the actual Agent implementation to account for all various interfaces that are available for the Webex Developer Ecosystem.
+
+Adam Weeks • Let's come up with some "failures" that we can test against. Here's larry's suggestions:
+	•	A README that describes a Webex integration in detail (correct architecture diagram, correct API endpoint names, correct prerequisites list) but where the actual code scaffold just opens a webview pointing to developer.webex.com or Webex Help docs
+	•	Copy-pasting the structure of a legitimate Playbook verbatim, swapping only the tool name, with placeholder code that never actually instantiates a Webex SDK or makes an API call
+	•	A repo where the code scaffold imports the Webex Node.js SDK but never calls any method — just require('webex') with no subsequent usage
+	•	Markdown that references real Webex API endpoints (e.g. /v1/rooms, /v1/messages) in the architecture diagram and prerequisites, but the actual code hits those URLs with hardcoded dummy tokens that would never resolve
