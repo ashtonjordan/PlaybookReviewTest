@@ -117,19 +117,44 @@ class GitHubAPIClient:
 
     @staticmethod
     def findings_to_comments(report: ReviewReport) -> list[ReviewComment]:
-        """Convert ReviewReport findings into ReviewComment objects.
+        """Convert ReviewReport findings into rich ReviewComment objects.
 
-        Each finding maps to a comment at the finding's file_path and line_start,
-        with the description as the comment body.
+        Only posts inline comments for error and warning severity.
+        Info findings are included in the summary only to reduce noise.
+        Findings without a valid file_path or line number (e.g., project-level
+        findings like "no Webex integration detected") are skipped — they
+        appear in the summary comment instead.
         """
-        return [
-            ReviewComment(
-                file_path=f.file_path,
-                line=f.line_start,
-                body=f.description,
+        severity_icons = {"error": "🔴", "warning": "🟡", "info": "🔵"}
+
+        comments = []
+        for f in report.findings:
+            # Skip info-level findings from inline comments — summary only
+            if f.severity.value == "info":
+                continue
+
+            # Skip project-level findings that have no file/line context
+            if not f.file_path or f.line_start < 1:
+                continue
+
+            icon = severity_icons.get(f.severity.value, "⚪")
+            lines = [
+                f"{icon} **{f.severity.value.upper()}** | Rule: `{f.rule_id}`",
+                "",
+                f.description,
+            ]
+            if f.remediation:
+                lines.append("")
+                lines.append(f"**How to fix:** {f.remediation}")
+
+            comments.append(
+                ReviewComment(
+                    file_path=f.file_path,
+                    line=f.line_start,
+                    body="\n".join(lines),
+                )
             )
-            for f in report.findings
-        ]
+        return comments
 
     # -- Internal helpers --
 

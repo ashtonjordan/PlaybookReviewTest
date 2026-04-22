@@ -8,6 +8,9 @@ env:
   CODEGUARD_RELEASE_TAG: "v1.3.1"
   CODEGUARD_REPO: "cosai-oasis/project-codeguard"
   CODEGUARD_CHECKOUT_PATH: "codeguard"
+  BASE_BRANCH_CHECKOUT_PATH: "base-rules"
+  AWS_REGION: "us-east-1"
+  BEDROCK_MODEL_ID: "anthropic.claude-3-haiku-20240307-v1:0"
 
 jobs:
   review:
@@ -19,6 +22,7 @@ jobs:
       contents: read
       checks: write
       pull-requests: write
+      id-token: write  # Required for OIDC federation
 
     steps:
       - name: Check out Playbook repo
@@ -31,6 +35,14 @@ jobs:
           ref: ${{ env.CODEGUARD_RELEASE_TAG }}
           path: ${{ env.CODEGUARD_CHECKOUT_PATH }}
 
+      - name: Check out base branch rules for ecosystem catalog
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.pull_request.base.ref }}
+          path: ${{ env.BASE_BRANCH_CHECKOUT_PATH }}
+          sparse-checkout: .github/rules/
+          sparse-checkout-cone-mode: false
+
       - name: Set up Python
         uses: actions/setup-python@v5
         with:
@@ -39,7 +51,14 @@ jobs:
       - name: Install dependencies
         run: |
           python -m pip install --upgrade pip
-          pip install pyyaml
+          pip install pyyaml boto3
+
+      - name: Configure AWS credentials via OIDC
+        if: vars.AWS_ROLE_ARN != ''
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: ${{ vars.AWS_ROLE_ARN }}
+          aws-region: ${{ env.AWS_REGION }}
 
       - name: Run PR Review Agent
         env:
@@ -48,4 +67,10 @@ jobs:
           PR_OWNER: ${{ github.repository_owner }}
           PR_REPO: ${{ github.event.repository.name }}
           COMMIT_SHA: ${{ github.event.pull_request.head.sha }}
+          CODEGUARD_CHECKOUT_PATH: ${{ env.CODEGUARD_CHECKOUT_PATH }}
+          BASE_BRANCH_CHECKOUT_PATH: ${{ env.BASE_BRANCH_CHECKOUT_PATH }}
+          BEDROCK_MODEL_ID: ${{ env.BEDROCK_MODEL_ID }}
+          AWS_REGION: ${{ env.AWS_REGION }}
+          BEDROCK_GUARDRAIL_ID: ${{ vars.BEDROCK_GUARDRAIL_ID }}
+          BEDROCK_GUARDRAIL_VERSION: ${{ vars.BEDROCK_GUARDRAIL_VERSION }}
         run: python -m src.run_review

@@ -152,9 +152,13 @@ def test_findings_produce_correct_review_comments(
     report = _gen.generate(findings, cid)
     comments = GitHubAPIClient.findings_to_comments(report)
 
-    assert len(comments) == len(report.findings)
+    # Only error and warning findings produce inline comments
+    actionable = [f for f in report.findings if f.severity.value != "info"]
+    assert len(comments) == len(actionable)
 
-    for finding, comment in zip(report.findings, comments):
+    for finding, comment in zip(actionable, comments):
         assert comment.file_path == finding.file_path
         assert comment.line == finding.line_start
-        assert comment.body == finding.description
+        assert finding.description in comment.body
+        assert finding.rule_id in comment.body
+        assert finding.severity.value.upper() in comment.body
