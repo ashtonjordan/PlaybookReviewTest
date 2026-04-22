@@ -134,7 +134,9 @@ class ReviewAgent:
             )
 
             # 6b. Ecosystem validation and scaffold checks (optional)
-            ecosystem_findings = self._run_ecosystem_and_scaffold_checks(code_files)
+            ecosystem_findings = self._run_ecosystem_and_scaffold_checks(
+                code_files, all_files=pr_files
+            )
             findings.extend(ecosystem_findings)
 
             # 7. AI analysis (if client available)
@@ -199,14 +201,20 @@ class ReviewAgent:
     # ------------------------------------------------------------------
 
     def _run_ecosystem_and_scaffold_checks(
-        self, code_files: list[PRFile]
+        self, code_files: list[PRFile], all_files: list[PRFile] | None = None
     ) -> list[Finding]:
         """Run Webex ecosystem validation and scaffold structural checks.
 
         These checks run independently of AI analysis and are only executed
         when the corresponding optional dependencies are configured.
+
+        Args:
+            code_files: Files filtered through the allowlist (for code analysis).
+            all_files: All PR files before filtering (for manifest/entry point checks).
+                       Falls back to code_files if not provided.
         """
         findings: list[Finding] = []
+        check_files = all_files if all_files is not None else code_files
 
         # --- Ecosystem validation ---
         detector = self.ecosystem_detector
@@ -260,11 +268,11 @@ class ReviewAgent:
                 self.logger.log("info", "Running scaffold structural checks")
                 scaffold_findings: list[Finding] = []
 
-                entry_point = checker.check_entry_point(code_files)
+                entry_point = checker.check_entry_point(check_files)
                 if entry_point is not None:
                     scaffold_findings.append(entry_point)
 
-                dep_manifest = checker.check_dependency_manifest(code_files)
+                dep_manifest = checker.check_dependency_manifest(check_files)
                 if dep_manifest is not None:
                     scaffold_findings.append(dep_manifest)
 

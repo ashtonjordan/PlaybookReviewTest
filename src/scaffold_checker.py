@@ -82,6 +82,56 @@ _SAFE_HOSTNAMES: frozenset[str] = frozenset(
     {"localhost", "example.com", "www.example.com", "test.example.com"}
 )
 
+# Documentation and well-known service hostnames that should not be flagged
+# as hardcoded configuration (these are reference URLs, not connection params)
+_DOCUMENTATION_HOSTNAMES: frozenset[str] = frozenset(
+    {
+        # Documentation sites
+        "docs.python.org",
+        "docs.oracle.com",
+        "docs.microsoft.com",
+        "learn.microsoft.com",
+        "developer.mozilla.org",
+        "developer.apple.com",
+        "developer.android.com",
+        "developer.webex.com",
+        "developer.cisco.com",
+        "cloud.google.com",
+        "developers.google.com",
+        "google-auth.readthedocs.io",
+        "readthedocs.io",
+        "readthedocs.org",
+        "docs.aws.amazon.com",
+        "docs.github.com",
+        "help.webex.com",
+        # Well-known OAuth / auth provider endpoints (standard, not configurable)
+        "accounts.google.com",
+        "oauth2.googleapis.com",
+        "www.googleapis.com",
+        "login.microsoftonline.com",
+        "cognito-idp.amazonaws.com",
+        "token.actions.githubusercontent.com",
+        # Package registries
+        "pypi.org",
+        "npmjs.com",
+        "www.npmjs.com",
+        "registry.npmjs.org",
+        "crates.io",
+        "rubygems.org",
+        "maven.org",
+        # Standards / specs
+        "tools.ietf.org",
+        "www.w3.org",
+        "json-schema.org",
+        "yaml.org",
+        "semver.org",
+        # GitHub
+        "github.com",
+        "raw.githubusercontent.com",
+        "api.github.com",
+    }
+)
+
 # Pattern to detect non-loopback private IP addresses in code
 _PRIVATE_IP_PATTERN: re.Pattern[str] = re.compile(
     r"\b(\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3})\b"
@@ -162,7 +212,8 @@ class ScaffoldChecker:
         """Check for a dependency manifest file.
 
         Looks for recognized dependency manifest filenames such as
-        package.json, requirements.txt, pom.xml, etc.
+        package.json, requirements.txt, pom.xml, etc. Checks both
+        root-level and subdirectory paths.
 
         Returns a Finding with severity WARNING if no manifest is found,
         or None if at least one manifest is detected.
@@ -193,7 +244,7 @@ class ScaffoldChecker:
         Scans patch content for hardcoded IP addresses (excluding 127.0.0.1
         and 0.0.0.0), hardcoded port numbers in URL-like patterns, and
         hardcoded hostnames in URL patterns (excluding localhost, example.com,
-        and test URLs).
+        documentation sites, well-known auth providers, and URLs in comments).
 
         Returns a list of Findings with severity WARNING for each hardcoded
         reference found.
@@ -208,6 +259,16 @@ class ScaffoldChecker:
             lines = code.splitlines()
 
             for line_idx, line in enumerate(lines, start=1):
+                # Skip comment lines — documentation URLs are not config
+                stripped = line.lstrip()
+                if (
+                    stripped.startswith("#")
+                    or stripped.startswith("//")
+                    or stripped.startswith("*")
+                    or stripped.startswith("/*")
+                ):
+                    continue
+
                 findings.extend(
                     self._check_line_for_hardcoded_config(
                         line, line_idx, pr_file.filename
@@ -298,6 +359,10 @@ class ScaffoldChecker:
                 for safe in ("localhost", "127.0.0.1", "0.0.0.0")
             ):
                 continue
+            # Skip well-known standard ports that aren't connection config
+            well_known_ports = {"22", "80", "443"}
+            if port_str in well_known_ports:
+                continue
             findings.append(
                 Finding(
                     file_path=filename,
@@ -323,6 +388,20 @@ class ScaffoldChecker:
             # Skip common safe patterns
             if hostname.endswith(".example.com") or hostname.endswith(".test"):
                 continue
+            # Skip documentation and well-known service hostnames
+            if hostname in _DOCUMENTATION_HOSTNAMES:
+                continue
+            # Skip if any parent domain is in the documentation list
+            # (e.g., "foo.readthedocs.io" matches "readthedocs.io")
+            parts = hostname.split(".")
+            skip = False
+            for i in range(1, len(parts)):
+                parent = ".".join(parts[i:])
+                if parent in _DOCUMENTATION_HOSTNAMES:
+                    skip = True
+                    break
+            if skip:
+                continue
             findings.append(
                 Finding(
                     file_path=filename,
@@ -345,30 +424,48 @@ class ScaffoldChecker:
     def _check_unmatched_brackets(code: str, filename: str) -> Finding | None:
         """Check for unmatched brackets/braces/parentheses via simple counting.
 
-        Counts opening and closing brackets across the entire file content.
-        Returns a Finding if any bracket type has a mismatch.
+        Counts opening and closing brackets across the entire file content,
+        skipping diff markers (+/-/@@) and content inside strings.
+        Allows a small tolerance (±3) for large files since diff patches
+        may not contain the complete file.
+        Returns a Finding only for significant mismatches.
         """
         counts: dict[str, int] = {"(": 0, ")": 0, "{": 0, "}": 0, "[": 0, "]": 0}
         in_string = False
         string_char = ""
         prev_char = ""
 
-        for char in code:
-            # Simple string tracking (skip brackets inside strings)
-            if char in ('"', "'") and prev_char != "\\":
-                if not in_string:
-                    in_string = True
-                    string_char = char
-                elif char == string_char:
-                    in_string = False
-            elif not in_string and char in counts:
-                counts[char] += 1
-            prev_char = char
+        for line in code.splitlines():
+            # Skip diff markers
+            stripped = line.lstrip()
+            if (
+                stripped.startswith("@@")
+                or stripped.startswith("---")
+                or stripped.startswith("+++")
+            ):
+                continue
+            # Strip diff prefix (+/-) before counting
+            if line.startswith("+") or line.startswith("-"):
+                line = line[1:]
 
+            for char in line:
+                if char in ('"', "'") and prev_char != "\\":
+                    if not in_string:
+                        in_string = True
+                        string_char = char
+                    elif char == string_char:
+                        in_string = False
+                elif not in_string and char in counts:
+                    counts[char] += 1
+                prev_char = char
+
+        # Allow a tolerance of ±3 for diff patches that may be incomplete
+        tolerance = 3
         mismatches: list[str] = []
         pairs = [("(", ")"), ("{", "}"), ("[", "]")]
         for open_b, close_b in pairs:
-            if counts[open_b] != counts[close_b]:
+            diff = abs(counts[open_b] - counts[close_b])
+            if diff > tolerance:
                 mismatches.append(
                     f"'{open_b}{close_b}' ({counts[open_b]} open, {counts[close_b]} close)"
                 )
