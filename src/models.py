@@ -134,7 +134,7 @@ class ReviewComment:
     body: str
 
 
-# Webex API Registry models
+# Webex API Registry models (kept for backward compat with AIModelClient prompt)
 
 
 @dataclass
@@ -162,3 +162,81 @@ class APIReference:
     method: Optional[str]
     file_path: str
     line_number: int
+
+
+# Webex Ecosystem Catalog models
+
+
+class SignalType(Enum):
+    """Type of Webex ecosystem integration signal detected in code."""
+
+    SDK_IMPORT = "sdk_import"
+    REST_API_URL = "rest_api_url"
+    WIDGET_MANIFEST = "widget_manifest"
+    BYOVA_PATTERN = "byova_pattern"
+    FLOW_REFERENCE = "flow_reference"
+    MCP_REFERENCE = "mcp_reference"
+
+
+@dataclass
+class SDKPackageEntry:
+    """A recognized Webex SDK package in the ecosystem catalog."""
+
+    name: str  # Package name (e.g., "webex-js-sdk", "@webex/embedded-app-sdk")
+    language: str  # Programming language (e.g., "javascript", "python")
+    import_patterns: list[str]  # Regex patterns to detect imports
+    technology: str  # Webex technology category (e.g., "Messaging", "Contact Center")
+
+
+@dataclass
+class RESTEndpointEntry:
+    """A documented Webex Developer Platform REST API endpoint."""
+
+    path: str  # API path (e.g., "/v1/messages")
+    method: str  # HTTP method (GET, POST, etc.)
+    technology: str  # Webex technology category
+    description: str
+
+
+@dataclass
+class ManifestPattern:
+    """A recognized Agent Desktop widget layout pattern."""
+
+    pattern_type: str  # e.g., "agent_desktop_layout"
+    detection_keys: list[
+        str
+    ]  # JSON keys that identify this layout (e.g., ["area", "comp"])
+    technology: str  # Webex technology category
+    description: str
+
+
+@dataclass
+class IntegrationPattern:
+    """A recognized BYOVA, Flow, or MCP integration pattern."""
+
+    pattern_type: str  # e.g., "byova_grpc", "connect_flow", "mcp_tool"
+    detection_patterns: list[str]  # Regex patterns to detect in code
+    technology: str  # Webex technology category
+    description: str
+
+
+@dataclass
+class WebexEcosystemCatalog:
+    """Complete catalog of recognized Webex Developer ecosystem integration signals."""
+
+    sdk_packages: list[SDKPackageEntry] = field(default_factory=list)
+    rest_endpoints: list[RESTEndpointEntry] = field(default_factory=list)
+    manifest_patterns: list[ManifestPattern] = field(default_factory=list)
+    integration_patterns: list[IntegrationPattern] = field(default_factory=list)
+
+
+@dataclass
+class EcosystemSignal:
+    """A Webex ecosystem integration signal detected in scaffold code."""
+
+    signal_type: SignalType
+    file_path: str
+    line_number: int
+    matched_value: str  # The actual matched text (import statement, URL, etc.)
+    technology: str  # Webex technology category (if identifiable)
+    catalog_entry: str  # Reference to the catalog entry that matched (if any)
