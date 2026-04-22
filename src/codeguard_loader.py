@@ -31,6 +31,9 @@ from src.structured_logger import StructuredLogger
 # Regex to split YAML frontmatter from markdown body
 _FRONTMATTER_RE = re.compile(r"\A---\s*\n(.*?)\n---\s*\n(.*)", re.DOTALL)
 
+# Semver release tag pattern: v followed by MAJOR.MINOR.PATCH
+_RELEASE_TAG_RE = re.compile(r"^v\d+\.\d+\.\d+$")
+
 
 class CodeGuardLoader:
     """Loads Rule_Set and Webex_API_Registry from a checked-out CodeGuard release."""
@@ -47,6 +50,17 @@ class CodeGuardLoader:
 
     # Where the real CodeGuard repo keeps its source rules
     _SOURCES_CORE_DIR = os.path.join("sources", "core")
+
+    @staticmethod
+    def validate_release_tag(ref: str) -> bool:
+        """Return True if *ref* is a valid semver release tag (e.g. ``v1.2.3``).
+
+        Rejects ``main``, ``latest``, ``develop``, ``master``, empty strings,
+        and any string that does not match ``^v\\d+\\.\\d+\\.\\d+$``.
+        """
+        if not ref:
+            return False
+        return _RELEASE_TAG_RE.match(ref) is not None
 
     def __init__(self, checkout_path: str, logger: StructuredLogger):
         self.checkout_path = checkout_path

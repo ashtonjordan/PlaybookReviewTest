@@ -1,7 +1,13 @@
 """PromptGuard: file allowlist filtering, prompt hardening, and output validation."""
 
 import os
+import re
+
 from src.models import PRFile
+
+# Control characters to strip: ASCII 0x00-0x08, 0x0B, 0x0C, 0x0E-0x1F, 0x7F
+# Preserves \t (0x09), \n (0x0A), \r (0x0D)
+_CONTROL_CHAR_RE = re.compile(r"[\x00-\x08\x0b\x0c\x0e-\x1f\x7f]")
 
 
 class PromptGuard:
@@ -27,6 +33,30 @@ class PromptGuard:
         self.file_allowlist = (
             file_allowlist if file_allowlist is not None else self.DEFAULT_ALLOWLIST
         )
+
+    @staticmethod
+    def sanitize_input(value: str, max_length: int = 10000) -> str:
+        """Sanitize a PR-derived input string.
+
+        1. Strips null bytes (\\x00)
+        2. Strips other control characters (0x01-0x08, 0x0B, 0x0C, 0x0E-0x1F, 0x7F)
+           but preserves newlines (\\n), carriage returns (\\r), and tabs (\\t)
+        3. Truncates strings exceeding *max_length*
+        """
+        sanitized = _CONTROL_CHAR_RE.sub("", value)
+        return sanitized[:max_length]
+
+    @staticmethod
+    def validate_input(value: str, max_length: int = 10000) -> bool:
+        """Return False if *value* contains null bytes or exceeds *max_length*.
+
+        Use this when the caller wants to reject rather than sanitize.
+        """
+        if "\x00" in value:
+            return False
+        if len(value) > max_length:
+            return False
+        return True
 
     def filter_files(self, files: list[PRFile]) -> list[PRFile]:
         """Filter PR files through the File_Allowlist. Returns only code files."""
