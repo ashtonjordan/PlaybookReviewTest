@@ -156,12 +156,7 @@ class ReviewAgent:
                 summary=report.summary,
             )
 
-            # 9. Post inline comments and summary
-            comments = GitHubAPIClient.findings_to_comments(report)
-            if comments:
-                self.github_client.post_review_comments(
-                    owner, repo, pr_number, comments
-                )
+            # 9. Post summary (no inline comments — summary contains all findings)
             summary_text = self._format_summary(report)
             self.github_client.post_review_summary(owner, repo, pr_number, summary_text)
 

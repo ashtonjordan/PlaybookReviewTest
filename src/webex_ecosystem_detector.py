@@ -403,7 +403,10 @@ class WebexEcosystemDetector:
         """Extract the API endpoint path from a Webex REST API URL.
 
         For example, from "https://webexapis.com/v1/messages" extracts "/v1/messages".
-        Returns an empty string if no path can be extracted.
+        Returns an empty string if no meaningful path can be extracted.
+        Bare base URLs like "https://webexapis.com/v1" (no resource after the
+        version prefix) are ignored — they're typically base URL variables,
+        not actual API calls.
         """
         # Match the host portion and capture everything after it as the path
         match = re.search(r"https?://[^/\s\"'`]+((?:/[^\s\"'`]*)?)", url, re.IGNORECASE)
@@ -411,8 +414,13 @@ class WebexEcosystemDetector:
             return ""
         path = match.group(1)
         # If no path segment was captured, the URL is just the host
-        if not path:
-            return "/"
+        if not path or path == "/":
+            return ""
+        # Ignore bare version prefixes like /v1 or /v2 — these are base URLs,
+        # not actual endpoint calls
+        stripped = path.rstrip("/")
+        if re.fullmatch(r"/v\d+", stripped):
+            return ""
         return path
 
     # ------------------------------------------------------------------
