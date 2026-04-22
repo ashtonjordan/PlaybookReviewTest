@@ -5,6 +5,7 @@ import sys
 import uuid
 
 from src.codeguard_loader import CodeGuardLoader
+from src.ecosystem_catalog_loader import EcosystemCatalogLoader
 from src.github_api_client import GitHubAPIClient
 from src.prompt_guard import PromptGuard
 from src.report_generator import ReviewReportGenerator
@@ -84,6 +85,14 @@ def main() -> None:
     report_generator = ReviewReportGenerator()
     ai_client = _create_ai_client(logger)
 
+    # Create ecosystem catalog loader if base branch checkout path is available
+    base_branch_path = os.environ.get("BASE_BRANCH_CHECKOUT_PATH", "")
+    ecosystem_catalog_loader = None
+    if base_branch_path:
+        ecosystem_catalog_loader = EcosystemCatalogLoader(
+            base_branch_checkout_path=base_branch_path, logger=logger
+        )
+
     agent = ReviewAgent(
         github_client=github_client,
         codeguard_loader=codeguard_loader,
@@ -91,6 +100,7 @@ def main() -> None:
         report_generator=report_generator,
         logger=logger,
         ai_client=ai_client,
+        ecosystem_catalog_loader=ecosystem_catalog_loader,
     )
 
     agent.run(owner=owner, repo=repo, pr_number=pr_number, commit_sha=commit_sha)

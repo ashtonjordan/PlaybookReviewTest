@@ -1,7 +1,10 @@
 """ReviewAgent: orchestrator for PR code review (rule-based + AI)."""
 
+from __future__ import annotations
+
 import os
 import re
+from typing import TYPE_CHECKING
 
 from src.ai_model_client import (
     AIModelClient,
@@ -16,6 +19,11 @@ from src.prompt_guard import PromptGuard
 from src.report_generator import ReviewReportGenerator
 from src.structured_logger import StructuredLogger
 
+if TYPE_CHECKING:
+    from src.ecosystem_catalog_loader import EcosystemCatalogLoader
+    from src.scaffold_checker import ScaffoldChecker
+    from src.webex_ecosystem_detector import WebexEcosystemDetector
+
 
 class ReviewAgent:
     """Orchestrates the full code review pipeline on a GitHub-hosted runner."""
@@ -28,6 +36,9 @@ class ReviewAgent:
         report_generator: ReviewReportGenerator,
         logger: StructuredLogger,
         ai_client: AIModelClient | None = None,
+        ecosystem_detector: WebexEcosystemDetector | None = None,
+        scaffold_checker: ScaffoldChecker | None = None,
+        ecosystem_catalog_loader: EcosystemCatalogLoader | None = None,
     ):
         self.github_client = github_client
         self.codeguard_loader = codeguard_loader
@@ -35,6 +46,9 @@ class ReviewAgent:
         self.report_generator = report_generator
         self.logger = logger
         self.ai_client = ai_client
+        self.ecosystem_detector = ecosystem_detector
+        self.scaffold_checker = scaffold_checker
+        self.ecosystem_catalog_loader = ecosystem_catalog_loader
 
     def run(self, owner: str, repo: str, pr_number: int, commit_sha: str) -> None:
         """Execute the review pipeline.
@@ -119,6 +133,10 @@ class ReviewAgent:
                 finding_count=len(findings),
             )
 
+            # 6b. Ecosystem validation and scaffold checks (optional)
+            ecosystem_findings = self._run_ecosystem_and_scaffold_checks(code_files)
+            findings.extend(ecosystem_findings)
+
             # 7. AI analysis (if client available)
             if self.ai_client is not None:
                 ai_findings = self._run_ai_analysis(code_files, enabled_rules)
@@ -180,6 +198,98 @@ class ReviewAgent:
                     "error", f"Failed to update check status after error: {inner}"
                 )
             raise
+
+    # ------------------------------------------------------------------
+    # Ecosystem validation and scaffold checks
+    # ------------------------------------------------------------------
+
+    def _run_ecosystem_and_scaffold_checks(
+        self, code_files: list[PRFile]
+    ) -> list[Finding]:
+        """Run Webex ecosystem validation and scaffold structural checks.
+
+        These checks run independently of AI analysis and are only executed
+        when the corresponding optional dependencies are configured.
+        """
+        findings: list[Finding] = []
+
+        # --- Ecosystem validation ---
+        detector = self.ecosystem_detector
+        if detector is None and self.ecosystem_catalog_loader is not None:
+            # Dynamically load the catalog and create a detector
+            try:
+                from src.webex_ecosystem_detector import WebexEcosystemDetector
+
+                self.logger.log(
+                    "info", "Loading Webex Ecosystem Catalog from base branch"
+                )
+                catalog = self.ecosystem_catalog_loader.load_ecosystem_catalog()
+                detector = WebexEcosystemDetector(catalog)
+            except Exception as exc:
+                self.logger.log(
+                    "warning",
+                    f"Failed to load ecosystem catalog: {exc}",
+                    error=str(exc),
+                )
+
+        if detector is not None:
+            try:
+                self.logger.log("info", "Running Webex ecosystem validation")
+                eco_findings = detector.validate(code_files)
+                findings.extend(eco_findings)
+                self.logger.log(
+                    "info",
+                    f"Ecosystem validation produced {len(eco_findings)} findings",
+                    ecosystem_finding_count=len(eco_findings),
+                )
+            except Exception as exc:
+                self.logger.log(
+                    "warning",
+                    f"Ecosystem validation failed, continuing: {exc}",
+                    error=str(exc),
+                )
+
+        # --- Scaffold structural checks ---
+        checker = self.scaffold_checker
+        if checker is None:
+            # Create a default ScaffoldChecker if not injected
+            try:
+                from src.scaffold_checker import ScaffoldChecker
+
+                checker = ScaffoldChecker()
+            except Exception:
+                pass
+
+        if checker is not None:
+            try:
+                self.logger.log("info", "Running scaffold structural checks")
+                scaffold_findings: list[Finding] = []
+
+                entry_point = checker.check_entry_point(code_files)
+                if entry_point is not None:
+                    scaffold_findings.append(entry_point)
+
+                dep_manifest = checker.check_dependency_manifest(code_files)
+                if dep_manifest is not None:
+                    scaffold_findings.append(dep_manifest)
+
+                scaffold_findings.extend(checker.check_config_references(code_files))
+                scaffold_findings.extend(checker.check_syntax(code_files))
+
+                findings.extend(scaffold_findings)
+                self.logger.log(
+                    "info",
+                    f"Scaffold checks produced {len(scaffold_findings)} findings",
+                    scaffold_finding_count=len(scaffold_findings),
+                )
+            except Exception as exc:
+                self.logger.log(
+                    "warning",
+                    f"Scaffold checks failed, continuing: {exc}",
+                    error=str(exc),
+                )
+
+        return findings
 
     # ------------------------------------------------------------------
     # AI analysis
