@@ -1,1 +1,0 @@
-# Webex Contact Center BYOVA Gateway Python Package
