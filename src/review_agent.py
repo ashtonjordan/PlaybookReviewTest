@@ -177,8 +177,20 @@ class ReviewAgent:
                 summary=report.summary,
             )
 
+            # Build audit context for the summary
+            audit_context = {
+                "total_files": len(pr_files),
+                "code_files": len(code_files),
+                "scaffold_files": len(scaffold_files),
+                "scaffold_filenames": [f.filename for f in scaffold_files],
+                "rules_applied": len(enabled_rules),
+                "ai_enabled": self.ai_client is not None,
+                "ecosystem_enabled": self.ecosystem_catalog_loader is not None
+                or self.ecosystem_detector is not None,
+            }
+
             # 9. Post summary (no inline comments — summary contains all findings)
-            summary_text = self._format_summary(report)
+            summary_text = self._format_summary(report, audit_context=audit_context)
             self.github_client.post_review_summary(owner, repo, pr_number, summary_text)
 
             # 10. Update Check_Status based on verdict
@@ -552,8 +564,13 @@ class ReviewAgent:
         return findings
 
     @staticmethod
-    def _format_summary(report) -> str:
-        """Format a ReviewReport into a rich, actionable summary string."""
+    def _format_summary(report, audit_context: dict | None = None) -> str:
+        """Format a ReviewReport into a rich, actionable summary string.
+
+        When audit_context is provided, includes details about what was
+        checked (files scanned, rules applied, ecosystem signals, etc.)
+        for auditability — especially important for clean passes.
+        """
         verdict_icon = "✅" if report.verdict == "pass" else "❌"
         lines = [f"## {verdict_icon} PR Review — {report.verdict.upper()}\n"]
 
@@ -599,5 +616,41 @@ class ReviewAgent:
                         lines.append(f"   {f.remediation}\n")
         else:
             lines.append("\n✨ No issues found. Looks good!")
+
+        # Audit trail — always included for transparency
+        if audit_context:
+            lines.append("\n---\n")
+            lines.append("<details><summary>📋 Review Audit Trail</summary>\n")
+
+            total = audit_context.get("total_files", 0)
+            code = audit_context.get("code_files", 0)
+            scaffold = audit_context.get("scaffold_files", 0)
+            rules = audit_context.get("rules_applied", 0)
+            ai = audit_context.get("ai_enabled", False)
+            eco = audit_context.get("ecosystem_enabled", False)
+
+            lines.append("| Check | Result |")
+            lines.append("|---|---|")
+            lines.append(
+                f"| Files in PR | {total} total, {code} code, {scaffold} scaffold |"
+            )
+            lines.append(f"| CodeGuard rules applied | {rules} |")
+            lines.append(
+                f"| AI analysis (Bedrock) | {'✅ Enabled' if ai else '⬜ Disabled'} |"
+            )
+            lines.append(
+                f"| Webex ecosystem validation | {'✅ Enabled' if eco else '⬜ Disabled'} |"
+            )
+            lines.append(f"| Scaffold structural checks | ✅ Enabled |")
+
+            filenames = audit_context.get("scaffold_filenames", [])
+            if filenames:
+                lines.append(f"\n**Scaffold files reviewed ({len(filenames)}):**\n")
+                for fname in filenames[:30]:  # Cap at 30 to avoid huge summaries
+                    lines.append(f"- `{fname}`")
+                if len(filenames) > 30:
+                    lines.append(f"- ... and {len(filenames) - 30} more")
+
+            lines.append("\n</details>")
 
         return "\n".join(lines)
