@@ -244,7 +244,8 @@ class ScaffoldChecker:
         Scans patch content for hardcoded IP addresses (excluding 127.0.0.1
         and 0.0.0.0), hardcoded port numbers in URL-like patterns, and
         hardcoded hostnames in URL patterns (excluding localhost, example.com,
-        documentation sites, well-known auth providers, and URLs in comments).
+        documentation sites, well-known auth providers, and URLs in comments
+        or docstrings).
 
         Returns a list of Findings with severity WARNING for each hardcoded
         reference found.
@@ -257,18 +258,9 @@ class ScaffoldChecker:
 
             code = pr_file.patch or ""
             lines = code.splitlines()
+            executable_lines = self._get_executable_lines(lines)
 
-            for line_idx, line in enumerate(lines, start=1):
-                # Skip comment lines — documentation URLs are not config
-                stripped = line.lstrip()
-                if (
-                    stripped.startswith("#")
-                    or stripped.startswith("//")
-                    or stripped.startswith("*")
-                    or stripped.startswith("/*")
-                ):
-                    continue
-
+            for line_idx, line in executable_lines:
                 findings.extend(
                     self._check_line_for_hardcoded_config(
                         line, line_idx, pr_file.filename
@@ -317,6 +309,71 @@ class ScaffoldChecker:
         """Return True if the filename has a recognized code extension."""
         _, ext = os.path.splitext(filename)
         return ext.lower() in _CODE_EXTENSIONS
+
+    @staticmethod
+    def _get_executable_lines(lines: list[str]) -> list[tuple[int, str]]:
+        """Filter lines to only executable code, skipping comments and docstrings.
+
+        Returns a list of (line_number, line_text) tuples for lines that are
+        not inside docstrings (triple-quoted strings), single-line comments,
+        or multiline C-style comments.
+        """
+        result: list[tuple[int, str]] = []
+        in_docstring = False
+        docstring_char = ""
+        in_block_comment = False  # For /* ... */ style
+
+        for line_idx, line in enumerate(lines, start=1):
+            stripped = line.lstrip()
+
+            # Strip diff prefix (+/-) for analysis
+            if stripped.startswith("+") or stripped.startswith("-"):
+                stripped = stripped[1:].lstrip()
+
+            # Track /* ... */ block comments (Java, JS, C, etc.)
+            if in_block_comment:
+                if "*/" in stripped:
+                    in_block_comment = False
+                continue
+            if stripped.startswith("/*"):
+                if "*/" not in stripped:
+                    in_block_comment = True
+                continue
+
+            # Track Python triple-quoted docstrings
+            if in_docstring:
+                if docstring_char in stripped:
+                    in_docstring = False
+                continue
+
+            # Check for docstring start
+            for quote in ('"""', "'''"):
+                if quote in stripped:
+                    # Count occurrences — if odd, we're entering/exiting a docstring
+                    count = stripped.count(quote)
+                    if count == 1:
+                        # Single triple-quote: entering a multiline docstring
+                        in_docstring = True
+                        docstring_char = quote
+                        continue
+                    # If count >= 2, the docstring opens and closes on the same line
+                    # (e.g., """docstring""") — skip this line but don't enter docstring mode
+                    break
+
+            if in_docstring:
+                continue
+
+            # Skip single-line comments
+            if (
+                stripped.startswith("#")
+                or stripped.startswith("//")
+                or stripped.startswith("*")
+            ):
+                continue
+
+            result.append((line_idx, line))
+
+        return result
 
     @staticmethod
     def _check_line_for_hardcoded_config(
@@ -487,11 +544,15 @@ class ScaffoldChecker:
 
     @staticmethod
     def _check_incomplete_code(code: str, filename: str) -> list[Finding]:
-        """Check for TODO/FIXME/HACK/XXX comments and placeholder patterns."""
+        """Check for TODO/FIXME/HACK/XXX comments and placeholder patterns.
+
+        Skips content inside docstrings and multiline comments.
+        """
         findings: list[Finding] = []
         lines = code.splitlines()
+        executable_lines = ScaffoldChecker._get_executable_lines(lines)
 
-        for line_idx, line in enumerate(lines, start=1):
+        for line_idx, line in executable_lines:
             # Check for TODO/FIXME/HACK/XXX markers
             todo_match = _TODO_PATTERN.search(line)
             if todo_match:
