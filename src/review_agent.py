@@ -28,6 +28,17 @@ if TYPE_CHECKING:
 class ReviewAgent:
     """Orchestrates the full code review pipeline on a GitHub-hosted runner."""
 
+    # Directories containing the Agent's own infrastructure code.
+    # Files under these paths are excluded from AI analysis and scaffold checks
+    # since they are not Playbook scaffolds.
+    _AGENT_SOURCE_PREFIXES: tuple[str, ...] = (
+        "src/",
+        "tests/",
+        "scripts/",
+        ".github/",
+        "docs/",
+    )
+
     def __init__(
         self,
         github_client: GitHubAPIClient,
@@ -97,6 +108,14 @@ class ReviewAgent:
                 code_file_count=len(code_files),
             )
 
+            # 3b. Separate scaffold files from Agent infrastructure files
+            scaffold_files = self._filter_scaffold_files(code_files)
+            self.logger.log(
+                "info",
+                f"{len(scaffold_files)} scaffold files (excluded {len(code_files) - len(scaffold_files)} agent source files)",
+                scaffold_file_count=len(scaffold_files),
+            )
+
             # 4. If no code files, fail early
             if not code_files:
                 self.logger.log(
@@ -135,13 +154,13 @@ class ReviewAgent:
 
             # 6b. Ecosystem validation and scaffold checks (optional)
             ecosystem_findings = self._run_ecosystem_and_scaffold_checks(
-                code_files, all_files=pr_files
+                scaffold_files, all_files=pr_files
             )
             findings.extend(ecosystem_findings)
 
             # 7. AI analysis (if client available)
             if self.ai_client is not None:
-                ai_findings = self._run_ai_analysis(code_files, enabled_rules)
+                ai_findings = self._run_ai_analysis(scaffold_files, enabled_rules)
                 findings.extend(ai_findings)
                 self.logger.log(
                     "info",
@@ -465,6 +484,21 @@ class ReviewAgent:
                 )
             )
         return findings
+
+    @classmethod
+    def _filter_scaffold_files(cls, files: list[PRFile]) -> list[PRFile]:
+        """Exclude the Agent's own source files, keeping only Playbook scaffold files.
+
+        Files under src/, tests/, scripts/, .github/, docs/ are the Agent's
+        infrastructure and should not be reviewed as Playbook scaffolds.
+        """
+        return [
+            f
+            for f in files
+            if not any(
+                f.filename.startswith(prefix) for prefix in cls._AGENT_SOURCE_PREFIXES
+            )
+        ]
 
     @staticmethod
     def _detect_language(filename: str) -> str | None:
