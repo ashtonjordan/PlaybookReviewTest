@@ -153,8 +153,10 @@ class ReviewAgent:
             )
 
             # 6b. Ecosystem validation and scaffold checks (optional)
-            ecosystem_findings = self._run_ecosystem_and_scaffold_checks(
-                scaffold_files, all_files=pr_files
+            ecosystem_findings, detected_signals = (
+                self._run_ecosystem_and_scaffold_checks(
+                    scaffold_files, all_files=pr_files
+                )
             )
             findings.extend(ecosystem_findings)
 
@@ -177,16 +179,9 @@ class ReviewAgent:
                 summary=report.summary,
             )
 
-            # Build audit context for the summary
+            # Build audit context for the summary — only positive signals, no internals
             audit_context = {
-                "total_files": len(pr_files),
-                "code_files": len(code_files),
-                "scaffold_files": len(scaffold_files),
-                "scaffold_filenames": [f.filename for f in scaffold_files],
-                "rules_applied": len(enabled_rules),
-                "ai_enabled": self.ai_client is not None,
-                "ecosystem_enabled": self.ecosystem_catalog_loader is not None
-                or self.ecosystem_detector is not None,
+                "detected_signals": detected_signals,
             }
 
             # 9. Post summary (no inline comments — summary contains all findings)
@@ -233,24 +228,19 @@ class ReviewAgent:
 
     def _run_ecosystem_and_scaffold_checks(
         self, code_files: list[PRFile], all_files: list[PRFile] | None = None
-    ) -> list[Finding]:
+    ) -> tuple[list[Finding], list]:
         """Run Webex ecosystem validation and scaffold structural checks.
 
-        These checks run independently of AI analysis and are only executed
-        when the corresponding optional dependencies are configured.
-
-        Args:
-            code_files: Files filtered through the allowlist (for code analysis).
-            all_files: All PR files before filtering (for manifest/entry point checks).
-                       Falls back to code_files if not provided.
+        Returns a tuple of (findings, detected_signals) where detected_signals
+        is the list of EcosystemSignal objects found during Tier 1 detection.
         """
         findings: list[Finding] = []
+        detected_signals: list = []
         check_files = all_files if all_files is not None else code_files
 
         # --- Ecosystem validation ---
         detector = self.ecosystem_detector
         if detector is None and self.ecosystem_catalog_loader is not None:
-            # Dynamically load the catalog and create a detector
             try:
                 from src.webex_ecosystem_detector import WebexEcosystemDetector
 
@@ -269,11 +259,15 @@ class ReviewAgent:
         if detector is not None:
             try:
                 self.logger.log("info", "Running Webex ecosystem validation")
+                # Capture the raw signals for the audit trail
+                detected_signals = detector.detect_signals(code_files)
                 eco_findings = detector.validate(code_files)
                 findings.extend(eco_findings)
                 self.logger.log(
                     "info",
-                    f"Ecosystem validation produced {len(eco_findings)} findings",
+                    f"Ecosystem validation: {len(detected_signals)} signals detected, "
+                    f"{len(eco_findings)} findings",
+                    signal_count=len(detected_signals),
                     ecosystem_finding_count=len(eco_findings),
                 )
             except Exception as exc:
@@ -286,7 +280,6 @@ class ReviewAgent:
         # --- Scaffold structural checks ---
         checker = self.scaffold_checker
         if checker is None:
-            # Create a default ScaffoldChecker if not injected
             try:
                 from src.scaffold_checker import ScaffoldChecker
 
@@ -323,7 +316,7 @@ class ReviewAgent:
                     error=str(exc),
                 )
 
-        return findings
+        return findings, detected_signals
 
     # ------------------------------------------------------------------
     # AI analysis
@@ -617,40 +610,44 @@ class ReviewAgent:
         else:
             lines.append("\n✨ No issues found. Looks good!")
 
-        # Audit trail — always included for transparency
+        # Show detected ecosystem signals — what made it pass (or what was found)
         if audit_context:
-            lines.append("\n---\n")
-            lines.append("<details><summary>📋 Review Audit Trail</summary>\n")
+            signals = audit_context.get("detected_signals", [])
+            if signals:
+                lines.append("\n---\n")
+                lines.append(
+                    "<details><summary>🔍 Webex Ecosystem Signals Detected</summary>\n"
+                )
+                lines.append(
+                    "The following Webex Developer ecosystem integration signals "
+                    "were identified in the scaffold code:\n"
+                )
+                lines.append("| Signal Type | File | Line | Matched | Technology |")
+                lines.append("|---|---|---|---|---|")
 
-            total = audit_context.get("total_files", 0)
-            code = audit_context.get("code_files", 0)
-            scaffold = audit_context.get("scaffold_files", 0)
-            rules = audit_context.get("rules_applied", 0)
-            ai = audit_context.get("ai_enabled", False)
-            eco = audit_context.get("ecosystem_enabled", False)
+                signal_type_labels = {
+                    "sdk_import": "SDK Import",
+                    "rest_api_url": "REST API URL",
+                    "widget_manifest": "Widget Layout",
+                    "byova_pattern": "BYOVA Pattern",
+                    "flow_reference": "Flow Reference",
+                    "mcp_reference": "MCP Reference",
+                }
 
-            lines.append("| Check | Result |")
-            lines.append("|---|---|")
-            lines.append(
-                f"| Files in PR | {total} total, {code} code, {scaffold} scaffold |"
-            )
-            lines.append(f"| CodeGuard rules applied | {rules} |")
-            lines.append(
-                f"| AI analysis (Bedrock) | {'✅ Enabled' if ai else '⬜ Disabled'} |"
-            )
-            lines.append(
-                f"| Webex ecosystem validation | {'✅ Enabled' if eco else '⬜ Disabled'} |"
-            )
-            lines.append(f"| Scaffold structural checks | ✅ Enabled |")
+                for sig in signals:
+                    sig_type = getattr(sig, "signal_type", None)
+                    label = signal_type_labels.get(
+                        sig_type.value if sig_type else "", str(sig_type)
+                    )
+                    matched = getattr(sig, "matched_value", "")
+                    if len(matched) > 60:
+                        matched = matched[:57] + "..."
+                    lines.append(
+                        f"| {label} | `{getattr(sig, 'file_path', '')}` | "
+                        f"{getattr(sig, 'line_number', '')} | "
+                        f"`{matched}` | {getattr(sig, 'technology', '')} |"
+                    )
 
-            filenames = audit_context.get("scaffold_filenames", [])
-            if filenames:
-                lines.append(f"\n**Scaffold files reviewed ({len(filenames)}):**\n")
-                for fname in filenames[:30]:  # Cap at 30 to avoid huge summaries
-                    lines.append(f"- `{fname}`")
-                if len(filenames) > 30:
-                    lines.append(f"- ... and {len(filenames) - 30} more")
-
-            lines.append("\n</details>")
+                lines.append("\n</details>")
 
         return "\n".join(lines)
