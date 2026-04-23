@@ -376,9 +376,10 @@ class ReviewAgent:
         """Convert validated AI response dict into Finding objects.
 
         Applies post-processing filters to discard likely hallucinated findings:
-        - Findings pointing to line 0 or 1 with generic descriptions
+        - Findings with no file path
         - Findings referencing file paths not in the PR
-        - Findings describing code patterns not present in the actual diff
+        - Findings describing code patterns (SQL, eval, subprocess, etc.)
+          that do not actually exist anywhere in the file's diff content
         """
         # Build a set of valid file paths and a map of file content for validation
         valid_files: set[str] = set()
@@ -386,7 +387,7 @@ class ReviewAgent:
         if code_files:
             for f in code_files:
                 valid_files.add(f.filename)
-                file_content[f.filename] = f.patch or ""
+                file_content[f.filename] = (f.patch or "").lower()
 
         findings = []
         for item in response.get("findings", []):
@@ -410,31 +411,46 @@ class ReviewAgent:
             if valid_files and file_path not in valid_files:
                 continue
 
-            # Filter: discard findings pointing to line 1 that look generic
-            # (line 1 is almost always a docstring/comment, not real code)
-            if line_number <= 1 and file_path in file_content:
+            # Filter: discard hallucinated findings where the description
+            # mentions specific vulnerability patterns that don't exist
+            # anywhere in the actual file content
+            if file_path in file_content:
                 content = file_content[file_path]
-                first_lines = "\n".join(content.splitlines()[:5]).lower()
-                # If line 1 is a docstring/comment and the description mentions
-                # code patterns not in those lines, it's likely hallucinated
-                hallucination_keywords = [
-                    "sql injection",
-                    "cursor.execute",
-                    "request.args",
-                    "eval(",
-                    "exec(",
-                    "subprocess",
-                    "os.system",
-                ]
-                if any(kw in description.lower() for kw in hallucination_keywords):
-                    if not any(kw in first_lines for kw in hallucination_keywords):
-                        self.logger.log(
-                            "info",
-                            f"Discarding likely hallucinated AI finding at {file_path}:1 — "
-                            f"description mentions patterns not found in code",
-                            rule_id=rule_id,
-                        )
-                        continue
+                desc_lower = description.lower()
+
+                # Map of vulnerability claims to code patterns that MUST exist
+                # in the file for the claim to be valid
+                claim_evidence = {
+                    "sql injection": ["cursor.execute", "execute(", ".query(", "sql"],
+                    "cursor.execute": ["cursor.execute"],
+                    "request.args": ["request.args"],
+                    "request.form": ["request.form"],
+                    "eval(": ["eval("],
+                    "exec(": ["exec("],
+                    "subprocess": ["subprocess"],
+                    "os.system": ["os.system"],
+                    "pickle.loads": ["pickle.loads"],
+                    "yaml.load": ["yaml.load"],
+                    "innerHTML": ["innerhtml"],
+                    "document.write": ["document.write"],
+                }
+
+                hallucinated = False
+                for claim, evidence_patterns in claim_evidence.items():
+                    if claim in desc_lower:
+                        # The AI claims this vulnerability exists — verify
+                        if not any(pat in content for pat in evidence_patterns):
+                            self.logger.log(
+                                "info",
+                                f"Discarding hallucinated AI finding at {file_path}:{line_number} — "
+                                f"description claims '{claim}' but pattern not found in file",
+                                rule_id=rule_id,
+                            )
+                            hallucinated = True
+                            break
+
+                if hallucinated:
+                    continue
 
             findings.append(
                 Finding(
