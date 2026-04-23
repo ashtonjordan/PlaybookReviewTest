@@ -340,7 +340,9 @@ class ReviewAgent:
                     continue
 
                 # Parse findings from validated response
-                batch_findings = self._parse_ai_findings(response)
+                batch_findings = self._parse_ai_findings(
+                    response, code_files=code_files
+                )
                 all_findings.extend(batch_findings)
 
             except BedrockGuardrailError as exc:
@@ -368,8 +370,24 @@ class ReviewAgent:
 
         return all_findings
 
-    def _parse_ai_findings(self, response: dict) -> list[Finding]:
-        """Convert validated AI response dict into Finding objects."""
+    def _parse_ai_findings(
+        self, response: dict, code_files: list[PRFile] | None = None
+    ) -> list[Finding]:
+        """Convert validated AI response dict into Finding objects.
+
+        Applies post-processing filters to discard likely hallucinated findings:
+        - Findings pointing to line 0 or 1 with generic descriptions
+        - Findings referencing file paths not in the PR
+        - Findings describing code patterns not present in the actual diff
+        """
+        # Build a set of valid file paths and a map of file content for validation
+        valid_files: set[str] = set()
+        file_content: dict[str, str] = {}
+        if code_files:
+            for f in code_files:
+                valid_files.add(f.filename)
+                file_content[f.filename] = f.patch or ""
+
         findings = []
         for item in response.get("findings", []):
             severity_str = item.get("severity", "info").lower()
@@ -378,16 +396,51 @@ class ReviewAgent:
             except ValueError:
                 severity = Severity.INFO
 
-            # Build rich description including remediation
             description = item.get("description", "")
             remediation = item.get("remediation", "")
             rule_id = item.get("rule_id", "ai-finding")
+            file_path = item.get("file_path", "")
+            line_number = int(item.get("line_number", 0))
+
+            # Filter: discard findings with no file path
+            if not file_path:
+                continue
+
+            # Filter: discard findings referencing files not in the PR
+            if valid_files and file_path not in valid_files:
+                continue
+
+            # Filter: discard findings pointing to line 1 that look generic
+            # (line 1 is almost always a docstring/comment, not real code)
+            if line_number <= 1 and file_path in file_content:
+                content = file_content[file_path]
+                first_lines = "\n".join(content.splitlines()[:5]).lower()
+                # If line 1 is a docstring/comment and the description mentions
+                # code patterns not in those lines, it's likely hallucinated
+                hallucination_keywords = [
+                    "sql injection",
+                    "cursor.execute",
+                    "request.args",
+                    "eval(",
+                    "exec(",
+                    "subprocess",
+                    "os.system",
+                ]
+                if any(kw in description.lower() for kw in hallucination_keywords):
+                    if not any(kw in first_lines for kw in hallucination_keywords):
+                        self.logger.log(
+                            "info",
+                            f"Discarding likely hallucinated AI finding at {file_path}:1 — "
+                            f"description mentions patterns not found in code",
+                            rule_id=rule_id,
+                        )
+                        continue
 
             findings.append(
                 Finding(
-                    file_path=item.get("file_path", ""),
-                    line_start=int(item.get("line_number", 0)),
-                    line_end=int(item.get("line_number", 0)),
+                    file_path=file_path,
+                    line_start=line_number,
+                    line_end=line_number,
                     rule_id=rule_id,
                     category=item.get("category", "ai-review"),
                     severity=severity,
