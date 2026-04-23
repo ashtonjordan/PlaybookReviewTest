@@ -1,0 +1,21 @@
+{
+  "area": {
+    "advancedHeader": {
+      "comp": "agentx-preview-canvas",
+      "attributes": {
+        "show-timer": true
+      }
+    },
+    "panel": {
+      "comp": "agentx-wc-more-info",
+      "children": [
+        {
+          "comp": "widget-rss-feed",
+          "attributes": {
+            "feed-url": "https://feeds.example.com/news.rss"
+          }
+        }
+      ]
+    }
+  }
+}
